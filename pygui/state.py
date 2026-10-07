@@ -1,20 +1,23 @@
 """Reactive state and the thread-local runtime context shared by the framework."""
 from __future__ import annotations
 
-import asyncio
+import contextvars
 import inspect
 import threading
-import traceback
+import types
 import weakref
 
 _local = threading.local()
 _runtime = {"app": None}
 _IMMUTABLE = (int, float, complex, str, bool, bytes, tuple, frozenset, type(None))
+# The window an asyncio task belongs to. Threads use _local.session; coroutines all share
+# one event-loop thread, so they carry their window in a context variable instead.
+_session_var = contextvars.ContextVar("pygui_session", default=None)
 
 
 def current_session():
-    """The window (session) whose event or render is running on this thread, if any."""
-    return getattr(_local, "session", None)
+    """The window (session) whose event, render or background task is running, if any."""
+    return getattr(_local, "session", None) or _session_var.get()
 
 
 def _targets():
@@ -147,7 +150,21 @@ class State:
 
 
 # ---------------------------------------------------------------- calling user code
+_FUNC_TYPES = (types.FunctionType, types.MethodType)
+
+
 def _arity(fn, available):
+    """How many of ``available`` positional arguments ``fn`` accepts.
+
+    Plain functions and methods are answered from their code object (cheap: handlers run on
+    every event); anything else goes through ``inspect.signature``."""
+    if type(fn) in _FUNC_TYPES:
+        func = fn.__func__ if type(fn) is types.MethodType else fn
+        code = func.__code__
+        if code.co_flags & inspect.CO_VARARGS:
+            return available
+        n = code.co_argcount - (1 if type(fn) is types.MethodType else 0)
+        return min(available, n)
     try:
         params = inspect.signature(fn).parameters.values()
     except (TypeError, ValueError):
@@ -159,35 +176,20 @@ def _arity(fn, available):
 
 
 def invoke(fn, *args):
-    """Call ``fn`` with as many of ``args`` as it accepts. Coroutines run in the background."""
+    """Call ``fn`` with as many of ``args`` as it accepts.
+
+    A coroutine it returns is scheduled on the shared event loop and ``None`` is returned."""
     result = fn(*args[: _arity(fn, len(args))])
     if inspect.iscoroutine(result):
-        _run_thread(lambda: asyncio.run(result))
+        from .tasks import run_coroutine
+        run_coroutine(result, current_session())
         return None
     return result
 
 
-def _run_thread(target):
-    session = current_session()
-
-    def runner():
-        _local.session = session
-        try:
-            target()
-        except Exception:
-            traceback.print_exc()
-            if session is not None:
-                session.report_error()
-
-    threading.Thread(target=runner, daemon=True).start()
-
-
 def spawn(fn, *args):
-    """Run ``fn(*args)`` (sync or async) in a background thread, keeping the current window."""
+    """Run ``fn(*args)`` (sync or async) in the background, keeping the current window.
 
-    def target():
-        result = fn(*args[: _arity(fn, len(args))])
-        if inspect.iscoroutine(result):
-            asyncio.run(result)
-
-    _run_thread(target)
+    Kept for compatibility; returns a :class:`pygui.tasks.Task`."""
+    from .tasks import start
+    return start(fn, *args)

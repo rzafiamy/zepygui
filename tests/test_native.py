@@ -62,6 +62,29 @@ class NativeWindowTests(unittest.TestCase):
         self.assertEqual(order, ["c", "a", "b"])
         self.assertEqual(keyed_mark, "a")
 
+    def test_log_view_streams_70k_lines_but_draws_only_the_visible_ones(self):
+        """covers: REQ-LOG-005"""
+        rows, last_number, last_text, total = run_scenario("log")["view"]
+        self.assertLess(rows, 100)
+        self.assertEqual((last_number, last_text), ("70000", "line 69999"))
+        self.assertEqual(total, 70_000)
+
+    def test_virtual_table_keeps_a_small_dom_while_scrolling(self):
+        """covers: REQ-CMP-012, REQ-EVT-011"""
+        r = run_scenario("virtual")
+        self.assertLess(r["before"], 60)
+        rows, seen = r["after"]
+        self.assertLess(rows, 60)
+        self.assertTrue(seen.startswith("file_0500"), seen)
+
+    def test_validation_errors_appear_in_the_window(self):
+        """covers: REQ-VAL-009"""
+        r = run_scenario("form")
+        self.assertEqual(r["empty"], ["This field is required"])
+        self.assertEqual(r["typing"], ["Enter a valid email address"])
+        self.assertEqual(r["valid"], [0, "saved=1"])
+        self.assertEqual(r["saved"], ["ada@example.com"])
+
 
 if __name__ == "__main__":
     unittest.main()

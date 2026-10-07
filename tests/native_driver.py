@@ -11,7 +11,7 @@ import zlib
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-from pygui import App, State, ui  # noqa: E402
+from pygui import App, Log, State, rules, ui  # noqa: E402
 
 scenario = sys.argv[1]
 app = App(f"Native {scenario}", width=640, height=480)
@@ -54,6 +54,10 @@ def png(path):
 text = State("")
 count = State(0)
 items = State(["a", "b", "c"])
+log = Log(max_lines=100_000)
+rows = [{"id": i, "name": f"file_{i:06d}"} for i in range(100_000)]
+saved = State([])
+banner = State(False)
 
 if scenario == "assets":
     folder = tempfile.mkdtemp()
@@ -73,7 +77,18 @@ def home():
         ui.button("inc", lambda: count.set(count.value + 1), id="inc"),
         ui.div(*[ui.span(i, key=i, cls="item") for i in items.value], id="list"),
         ui.image("assets/dot.png", width=8, height=8, id="img") if scenario == "assets" else None,
+        ui.alert("Streaming…") if banner.value else None,  # a sibling that comes and goes above the log
+        ui.log_view(log, height=200, numbers=True, cls="t-log") if scenario == "log" else None,
+        ui.table(rows, ["name"], max_height=200, cls="t-table") if scenario == "virtual" else None,
+        signup() if scenario == "form" else None,
     )
+
+
+def signup():
+    form = ui.use_form(email=("", [rules.required(), rules.email()]))
+    return ui.form(ui.input(form.email, label="Email", cls="t-email"), ui.button("Save", submit=True, cls="t-save"),
+                   ui.text(f"saved={len(saved.value)}", cls="t-saved"),
+                   on_submit=form.submit(lambda v: saved.append(v["email"])))
 
 
 @app.page("/two", title="Two")
@@ -122,6 +137,39 @@ def drive():
                                    " document.getElementById('field')._mark === 1,"
                                    " [...document.querySelectorAll('.item')].map(e => e.textContent),"
                                    " [...document.querySelectorAll('.item')].find(e => e.textContent === 'a')._mark]")
+        elif scenario == "log":
+            def produce():
+                for i in range(70_000):
+                    log.append(f"line {i}")
+                    if i in (20_000, 50_000):
+                        banner.set(not banner.value)
+            ui.task(produce).wait(20)
+            time.sleep(0.8)
+            results["view"] = ask("(() => { const v = document.querySelector('.t-log');"
+                                  " const r = v.querySelectorAll('.pg-log-rows > div');"
+                                  " return [r.length, r[r.length - 1].dataset.n, r[r.length - 1].textContent,"
+                                  " Math.round(v.scrollHeight / 18)]; })()")
+        elif scenario == "virtual":
+            results["before"] = ask("document.querySelectorAll('.t-table tbody tr:not(.pg-vspacer)').length")
+            js("const w = document.querySelector('.t-table'); w.scrollTop = 36 * 50000;"
+               " w.dispatchEvent(new Event('scroll'));", 0.8)
+            results["after"] = ask("(() => { const w = document.querySelector('.t-table');"
+                                   " const r = [...w.querySelectorAll('tbody tr:not(.pg-vspacer)')];"
+                                   " const top = w.getBoundingClientRect().top + 50;"
+                                   " const seen = r.find(tr => tr.getBoundingClientRect().bottom > top);"
+                                   " return [r.length, seen ? seen.textContent : null]; })()")
+        elif scenario == "form":
+            js("document.querySelector('.t-save').click()")
+            results["empty"] = ask("[...document.querySelectorAll('.pg-error-text')].map(e => e.textContent)")
+            js("const i = document.querySelector('.t-email input'); i.value = 'ada@example';"
+               " i.dispatchEvent(new Event('input'));")
+            results["typing"] = ask("[...document.querySelectorAll('.pg-error-text')].map(e => e.textContent)")
+            js("const i = document.querySelector('.t-email input'); i.value = 'ada@example.com';"
+               " i.dispatchEvent(new Event('input'));")
+            js("document.querySelector('.t-save').click()")
+            results["valid"] = ask("[document.querySelectorAll('.pg-error-text').length,"
+                                   " document.querySelector('.t-saved').textContent]")
+            results["saved"] = saved.value
         elif scenario == "sockets":
             out = subprocess.run(["lsof", "-nP", "-a", "-p", str(os.getpid()), "-i"], capture_output=True,
                                  text=True).stdout

@@ -8,8 +8,8 @@ themselves: the `covers:` line of each test in `tests/test_*.py`, and the rows o
 `auto (gui)` tests open a real native window and run on macOS with
 `PYGUI_GUI_TESTS=1`.
 
-Requirements: **99** · covered by an automated test: **77**
-(of which GUI only: **7**) · manual only: **22**
+Requirements: **134** · covered by an automated test: **112**
+(of which GUI only: **10**) · manual only: **22**
 · uncovered: **0**
 
 | Requirement | Verified by | Tests |
@@ -35,7 +35,7 @@ Requirements: **99** · covered by an automated test: **77**
 | **REQ-HOK-003** `use_state` called outside a render MUST raise `RuntimeError`. | auto | `use state outside a render raises` (tests/test_tree.py) |
 | **REQ-HOK-004** A callable default given to `use_state` MUST be evaluated only when the hook is created. | auto | `callable default is evaluated once` (tests/test_tree.py) |
 | **REQ-HOK-005** The hook state of a component no longer rendered MUST be discarded after that render. | auto | `state of unmounted components is discarded` (tests/test_tree.py) |
-| **REQ-HOK-006** An element passed as an argument to a component MUST NOT also render where it was created. | auto | `elements passed to components do not leak where created` (tests/test_tree.py) |
+| **REQ-HOK-006** An element passed as an argument to a component MUST NOT also render where it was created. | auto | `elements inside rows render only in their cell` (tests/test_performance.py)<br>`elements passed to components do not leak where created` (tests/test_tree.py) |
 | **REQ-RND-001** A render MUST send the complete tree together with the highest event sequence number processed. | auto | `render carries the tree and the acknowledged sequence` (tests/test_runtime.py) |
 | **REQ-RND-002** State changes made while handling one event MUST produce a single render. | auto | `several changes in one handler render once` (tests/test_runtime.py) |
 | **REQ-RND-003** A page that raises MUST render an error view containing the traceback, and the window MUST stay usable. | auto | `a failing page shows its traceback` (tests/test_runtime.py) |
@@ -54,6 +54,7 @@ Requirements: **99** · covered by an automated test: **77**
 | **REQ-EVT-008** The events of one window MUST be handled in the order they arrive. | auto | `events are processed in arrival order` (tests/test_runtime.py) |
 | **REQ-EVT-009** An event naming a handler absent from the last render MUST be ignored. | auto | `events for unknown handlers are ignored` (tests/test_runtime.py) |
 | **REQ-EVT-010** `ui.form(on_submit=…)` MUST pass a dict of its named fields, with checkboxes as booleans. | manual | `MT-020 Add to a page: `ui.form(ui.input(name="email"), ui.checkbox("Agree", name="agree"), ui.button("Send", submit=True), on_submit=print)`. Run it, type `a@b.c`, leave the box unchecked, press **Send**: the terminal prints `{'email': 'a@b.c', 'agree': False}`. Check the box and send again: `'agree': True`. Confirm the page does not reload.` (specs/manual.md) |
+| **REQ-EVT-011** A `throttle` delay MUST be sent to the client in the event spec, and a scroll event MUST carry the element's scroll offset. | auto, auto (gui) | `virtual table keeps a small dom while scrolling` (tests/test_native.py)<br>`virtual table renders only rows in view and follows the scroll` (tests/test_performance.py) |
 | **REQ-RTE-001** A static route MUST match its exact path, with or without one trailing slash, and nothing longer. | auto | `static paths match with or without trailing slash` (tests/test_runtime.py) |
 | **REQ-RTE-002** Route parameters typed `int`, `float` or `path` MUST be converted before the page is called. | auto | `typed parameters are converted` (tests/test_runtime.py) |
 | **REQ-RTE-003** A page MUST receive only the route parameters its signature accepts. | auto | `pages receive only parameters they accept` (tests/test_runtime.py) |
@@ -70,6 +71,9 @@ Requirements: **99** · covered by an automated test: **77**
 | **REQ-CMP-008** An input bound to a `State` MUST update that `State` on each input event. | auto | `bound input updates its state` (tests/test_tree.py) |
 | **REQ-CMP-009** `theme_toggle` MUST show the icon of the theme it switches to. | auto | `theme toggle shows the theme it switches to` (tests/test_tree.py) |
 | **REQ-CMP-010** The copy button of `code_block` MUST copy the block's text to the clipboard. | manual | `MT-021 Add `ui.code_block("print('hi')")` to a page, run it and press the copy icon at the block's top right. Confirm a "Copied to clipboard" toast appears and that pasting into a text editor gives exactly `print('hi')`.` (specs/manual.md) |
+| **REQ-CMP-011** A virtual table or `virtual_list` MUST render only the rows in view plus a margin, and MUST render the rows at a new scroll offset when the client reports it. | auto | `virtual table renders only rows in view and follows the scroll` (tests/test_performance.py)<br>`virtual list renders only items in view` (tests/test_performance.py) |
+| **REQ-CMP-012** While a virtual table scrolls in a window, its DOM MUST hold a bounded number of rows. | auto (gui) | `virtual table keeps a small dom while scrolling` (tests/test_native.py) |
+| **REQ-CMP-013** `table` MUST switch to virtual rendering when given more than 1,000 rows, unless `virtual` is set. | auto | `tables switch to virtual above a thousand rows` (tests/test_performance.py) |
 | **REQ-THM-001** `theme="auto"` MUST follow the operating system's appearance at launch. | manual | `MT-010 In System Settings › Appearance choose **Light**, run `examples/todo.py` (theme `auto`): confirm a light UI. Quit, choose **Dark**, run it again: confirm a dark UI. Run this before MT-011 and without touching the theme toggle: a theme chosen with the toggle is remembered and overrides `auto`.` (specs/manual.md) |
 | **REQ-THM-002** `ui.set_theme` MUST send the theme to the window and update `session.theme`. | auto | `set theme reaches the window and the session` (tests/test_runtime.py) |
 | **REQ-THM-003** The `accent` and `radius` settings MUST be applied as the `--accent` and `--radius` CSS variables. | auto | `accent colour becomes the accent variable` (tests/test_runtime.py) |
@@ -110,6 +114,37 @@ Requirements: **99** · covered by an automated test: **77**
 | **REQ-DEV-005** The examples MUST run with `python3 examples/<name>.py` without installing the package. | manual | `MT-042 From a fresh clone, without installing anything, run `python3 examples/hello.py`, `python3 examples/todo.py` and `python3 examples/dashboard.py`, each from the repository root and once from inside `examples/`. Confirm each opens its window with no `ModuleNotFoundError`.` (specs/manual.md) |
 | **REQ-DEV-006** A function registered with `@app.expose` MUST be callable from JavaScript and return its result, or its error. | auto | `exposed functions return results or errors` (tests/test_runtime.py) |
 | **REQ-DEV-007** A function registered with `@app.timer` MUST run periodically while the app runs, and stop when it ends. | auto | `timers run periodically while the app runs` (tests/test_runtime.py) |
+| **REQ-PRF-001** Building and serialising a tree MUST take time linear in its number of elements. | auto | `render time grows linearly with the number of elements` (tests/test_performance.py) |
+| **REQ-PRF-002** A render MUST NOT leave reference cycles for the garbage collector. | auto | `a render leaves no reference cycles` (tests/test_performance.py) |
+| **REQ-PRF-003** State changes made from other threads MUST leave at most one render request queued per window. | auto | `changes from other threads queue at most one render request` (tests/test_performance.py) |
+| **REQ-PRF-004** A window MUST render at most once per frame while its state keeps changing. | auto | `a window renders at most once per frame` (tests/test_performance.py) |
+| **REQ-PRF-005** A built-in icon MUST be sent to the client as a single node. | auto | `an icon is sent as one node` (tests/test_performance.py) |
+| **REQ-PRF-006** A handler that blocks its window for more than 250 ms MUST print a warning naming it, once per handler. | auto | `a slow handler is reported once` (tests/test_performance.py) |
+| **REQ-TSK-001** `ui.task(fn, …)` MUST return a `Task` at once and run `fn` on a background thread. | auto | `a task runs in the background and returns at once` (tests/test_tasks.py) |
+| **REQ-TSK-002** `on_done` and `on_error` MUST run on the worker thread of the window that started the task. | auto | `callbacks run on the window thread` (tests/test_tasks.py) |
+| **REQ-TSK-003** A function with a parameter named `task` MUST receive its `Task`, whose `report` MUST update the reactive `progress` and `message`. | auto | `a task parameter receives the task and reports progress` (tests/test_tasks.py) |
+| **REQ-TSK-004** `Task.cancel()` MUST keep a pending task from running, MUST stop a running one at its next `check()`, and MUST cancel a coroutine; the status MUST become `cancelled`. | auto | `cancelling stops pending and running tasks` (tests/test_tasks.py) |
+| **REQ-TSK-005** An error raised in a task without `on_error` MUST be shown as an error toast in the starting window. | auto | `an unhandled task error becomes a toast` (tests/test_tasks.py) |
+| **REQ-TSK-006** `ui.task(…, process=True)` MUST run the function in another process and return its result. | auto | `process tasks run in another process` (tests/test_tasks.py) |
+| **REQ-TSK-007** `ui.run_command` MUST deliver every output line in order, finish with the exit status (an error for a non-zero status), and `cancel()` MUST terminate the process. | auto | `commands stream their output and report the exit status` (tests/test_tasks.py) |
+| **REQ-TSK-008** Coroutines from handlers and tasks MUST run on one shared event loop, with the starting window as their current window. | auto | `coroutines share one loop and keep their window` (tests/test_tasks.py) |
+| **REQ-TSK-009** `App.run()` called in a process-pool worker MUST return without opening a window. | auto | `a process worker does not open a window` (tests/test_tasks.py) |
+| **REQ-LOG-001** A window showing a `Log` MUST receive every appended line exactly once, in order, batched into fewer messages than lines. | auto | `each line reaches the window once in order in batches` (tests/test_log.py) |
+| **REQ-LOG-002** A `Log` MUST keep at most `max_lines` lines, dropping the oldest. | auto | `a log keeps at most max lines` (tests/test_log.py) |
+| **REQ-LOG-003** `Log.clear()` MUST empty every open view. | auto | `clear empties open views` (tests/test_log.py) |
+| **REQ-LOG-004** A window that reconnects MUST receive the retained lines again. | auto | `a reconnected window receives the lines again` (tests/test_log.py) |
+| **REQ-LOG-005** `log_view` MUST create DOM nodes only for the lines in view plus a margin, and MUST keep the newest line in view while scrolled to the bottom. | auto (gui) | `log view streams 70k lines but draws only the visible ones` (tests/test_native.py) |
+| **REQ-LOG-006** A `Log` MUST accept text written to it as a stream (`print(…, file=log)`), holding back an unfinished line. | auto | `a log is a writable text stream` (tests/test_log.py) |
+| **REQ-VAL-001** A rule MUST return `None` for a valid value and a message otherwise; every rule except `required` MUST accept an empty value. | auto | `rules accept valid and empty values and name the problem` (tests/test_forms.py) |
+| **REQ-VAL-002** A field's error MUST stay hidden until the field has been left or its form submitted, and MUST then follow its value. | auto | `errors appear after leaving the field then follow the value` (tests/test_forms.py) |
+| **REQ-VAL-003** A form's submit handler MUST NOT be called while a field is invalid, and submitting MUST show every field's error. | auto | `submit shows every error and does not call the handler` (tests/test_forms.py) |
+| **REQ-VAL-004** A `ValidationError` raised by the submit handler MUST put its messages on the named fields, or a single message on `form.error`. | auto | `validation errors from the handler go to their fields` (tests/test_forms.py) |
+| **REQ-VAL-005** `submit(…, background=True)` MUST run the handler as a task with `form.submitting` true until it ends. | auto | `background submit marks the form busy until done` (tests/test_forms.py) |
+| **REQ-VAL-006** Editing a field MUST clear the error the submit handler put on it. | auto | `editing a field clears its server error` (tests/test_forms.py) |
+| **REQ-VAL-007** `input`, `textarea`, `select`, `checkbox` and `switch` given a `Field` MUST bind its value, show its error and mark it required when it has a `required` rule. | auto | `inputs bind a field and mark it required` (tests/test_forms.py) |
+| **REQ-VAL-008** `ui.form` MUST turn off the browser's own validation. | auto | `forms turn off native browser validation` (tests/test_forms.py) |
+| **REQ-VAL-009** Validation errors MUST appear in the window as the user submits and types. | auto (gui) | `validation errors appear in the window` (tests/test_native.py) |
+| **REQ-VAL-010** `rules.matches(name)` MUST compare a value with the named field of the same form. | auto | `matches compares with another field` (tests/test_forms.py) |
 | **REQ-PKG-001** The package MUST import only the Python standard library. | auto | `package imports only the standard library` (tests/test_platform.py) |
 | **REQ-PKG-002** The package MUST run on Python 3.9 and later. | manual | `MT-054 With Python 3.9 **and** the newest available Python 3 (e.g. via `pyenv` or python.org installers), run `python3 -m unittest discover -s tests` and `examples/dashboard.py`. Confirm both pass and open on each version. Record the versions in the release checklist.` (specs/manual.md) |
 | **REQ-PKG-003** The client runtime and stylesheet MUST be shipped as package data. | auto | `static assets are package data` (tests/test_platform.py) |

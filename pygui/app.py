@@ -1,9 +1,9 @@
 """Application, window sessions, routing and rendering."""
 from __future__ import annotations
 
-import asyncio
 import inspect
 import json
+import multiprocessing
 import os
 import platform
 import queue
@@ -17,12 +17,14 @@ import tempfile
 import threading
 import time
 import traceback
+import weakref
 import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
 from . import ui
 from .state import State, _local, _runtime, invoke
+from .tasks import run_coroutine, shutdown as _shutdown_tasks
 from .ui import ComponentCall, Element
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -120,6 +122,7 @@ class Renderer:
     def __init__(self, session):
         self.session = session
         self.handlers = {}
+        self.claims = {}  # id(parent) -> [(ComponentCall, children count when it was created)]
         self.used_hooks = set()
         self.hook_path, self.hook_idx = "root", 0
 
@@ -152,22 +155,40 @@ class Renderer:
         return tree, title
 
     def ser(self, node, path):
-        if node is None or node is True or node is False:
-            return []
-        if isinstance(node, State):
-            return self.ser(node.value, path)
-        if isinstance(node, ComponentCall):
-            return self.ser_component(node, path)
-        if isinstance(node, Element):
-            return self.ser_element(node, path)
-        if isinstance(node, (list, tuple)):
-            out = []
+        out = []
+        self._ser_into(node, path, out)
+        return out
+
+    def _ser_into(self, node, path, out):
+        """Serialise ``node`` and append the result to ``out`` (avoids a list per node)."""
+        cls = type(node)
+        if cls is str:
+            out.append(node)
+        elif cls is Element:
+            if node.tag == "":
+                self._children_into(node, path, out)
+            else:
+                out.append(self.ser_element(node, path))
+        elif node is None or node is True or node is False:
+            return
+        elif cls is ComponentCall:
+            out += self.ser_component(node, path)
+        elif isinstance(node, State):
+            self._ser_into(node.value, path, out)
+        elif isinstance(node, ComponentCall):
+            out += self.ser_component(node, path)
+        elif isinstance(node, Element):
+            if node.tag == "":
+                self._children_into(node, path, out)
+            else:
+                out.append(self.ser_element(node, path))
+        elif isinstance(node, (list, tuple)):
             for i, child in enumerate(node):
-                out += self.ser(child, f"{path}.{i}")
-            return out
-        if callable(node):
-            return self.ser(node(), path)
-        return [str(node)]
+                self._ser_into(child, f"{path}.{i}", out)
+        elif callable(node):
+            self._ser_into(node(), path, out)
+        else:
+            out.append(str(node))
 
     def ser_component(self, call, path):
         cpath = f"{path}/{getattr(call.fn, '__qualname__', 'c')}"
@@ -184,11 +205,13 @@ class Renderer:
             self.hook_path, self.hook_idx = saved
         if result is not None and not (isinstance(result, Element) and result._parent is frag):
             frag.add(result)
-        return self.ser(frag.children, cpath)
+        out = []
+        self._children_into(frag, cpath, out)
+        return out
 
     def ser_element(self, node, path):
         if node.tag == "":
-            return self.ser_children(node.children, path)
+            return self.ser_children(node, path)
         v = {"t": node.tag}
         attrs = {}
         for k, val in node.attrs.items():
@@ -215,25 +238,72 @@ class Renderer:
                 hid = f"{path}:{name}"
                 self.handlers[hid] = (handler, opts.get("transform"))
                 spec = {"h": hid}
-                for opt in ("keys", "prevent", "stop", "debounce", "self"):
+                for opt in ("keys", "prevent", "stop", "debounce", "throttle", "self"):
                     if opts.get(opt):
                         spec[opt] = opts[opt]
                 events.setdefault(opts.get("dom") or name, []).append(spec)
             v["e"] = events
         if node.html is not None:
             v["h"] = node.html
-        else:
-            children = self.ser_children(node.children, path)
+        elif node.children:
+            children = []
+            self._children_into(node, path, children)
             if children:
                 v["c"] = children
-        return [v]
+        return v
 
-    def ser_children(self, children, path):
+    def ser_children(self, node, path):
         out = []
-        for i, child in enumerate(children):
-            key = child.key if isinstance(child, Element) and child.key is not None else i
-            out += self.ser(child, f"{path}.{key}")
+        self._children_into(node, path, out)
         return out
+
+    def _claimed(self, node, calls):
+        """Ids of ``node``'s children that were passed as arguments to a component created
+        inside ``node`` (they render inside that component, never here)."""
+        found = set()
+        for call, before in calls:
+            wanted = {id(c) for c in node.children[:before]
+                      if isinstance(c, Element) and c._parent is node and id(c) not in found}
+            if wanted:
+                ui._find(call.args, wanted, found) or ui._find(call.kwargs, wanted, found)
+        return found
+
+    def _children_into(self, node, path, out):
+        calls = self.claims.get(id(node))
+        skip = self._claimed(node, calls) if calls else ()
+        i = 0
+        for child in node.children:
+            if type(child) is str:
+                out.append(child)
+            elif isinstance(child, Element):
+                if child._parent is not node or (skip and id(child) in skip):
+                    continue  # moved elsewhere, or handed to a component
+                key = child.key
+                self._ser_into(child, f"{path}.{i if key is None else key}", out)
+                # Break the child -> parent back-reference once serialised: the tree then has
+                # no reference cycles and is freed by reference counting as soon as the
+                # render ends, instead of waiting for (and slowing down) the cyclic GC.
+                child._parent = None
+            else:
+                self._ser_into(child, f"{path}.{i}", out)
+            i += 1
+
+
+_SLOW_HANDLER = 0.25  # seconds; longer and the window visibly freezes
+_warned_slow = set()
+
+
+def _warn_if_slow(handler, elapsed):
+    """Tell the developer (once per handler) that it blocked its window."""
+    if elapsed < _SLOW_HANDLER:
+        return
+    code = getattr(getattr(handler, "__func__", handler), "__code__", None)
+    where = f"{code.co_filename}:{code.co_firstlineno}" if code else repr(handler)
+    if where in _warned_slow:
+        return
+    _warned_slow.add(where)
+    print(f"[pygui] a handler blocked its window for {elapsed * 1000:.0f} ms ({where}). "
+          f"Run slow work with ui.task(fn, ...) to keep the window responsive.", file=sys.stderr)
 
 
 # =============================================================================
@@ -250,8 +320,10 @@ class Session:
         self.data = {}
         self.hooks = {}
         self.handlers = {}
+        self.logs = weakref.WeakSet()  # Log buffers this window shows (resent on reconnect)
         self.queue = queue.Queue()
         self.dirty = False
+        self._render_queued = False
         self.ack = self._sent_ack = 0
         self.closed = False
         self.connected = False
@@ -268,6 +340,8 @@ class Session:
         self.connected = True
         self._title = None
         self.queue.put(("render",))
+        for log in list(self.logs):
+            log._resync(self)
 
     def detach(self, out=None):
         if out is None or self._out == out:
@@ -290,7 +364,10 @@ class Session:
         if self._in_worker():
             if not self._rendering:
                 self.dirty = True
-        else:
+        elif not self._render_queued:
+            # One pending request is enough: a thread setting a State thousands of times
+            # per second must not flood the queue with identical render requests.
+            self._render_queued = True
             self.queue.put(("render",))
 
     def call_soon(self, fn, *args):
@@ -327,27 +404,40 @@ class Session:
             self.send({"type": "nav", "path": path})
         self.dirty = True
 
+    FRAME = 1 / 60      # at most one render per frame
+    MAX_DEFER = 0.1     # under a constant stream of events, still render this often
+
     def _loop(self):
         _local.session = self
-        last_render = time.time()
+        last_render = time.monotonic()  # lets the connect burst (nav, theme, render) settle first
         while True:
-            item = self.queue.get()
+            if self.dirty and self._out is not None:
+                now = time.monotonic()
+                wait = last_render + self.FRAME - now
+                if (wait <= 0 and self.queue.empty()) or now - last_render > self.MAX_DEFER:
+                    self._render()
+                    last_render = time.monotonic()
+                    continue
+                try:
+                    item = self.queue.get(timeout=wait) if wait > 0 else self.queue.get_nowait()
+                except queue.Empty:
+                    continue
+            else:
+                if self.ack != self._sent_ack and self.queue.empty():
+                    self._sent_ack = self.ack
+                    self.send({"type": "ack", "ack": self.ack})
+                item = self.queue.get()
             if item is None:
                 return
             try:
                 self._process(item)
             except Exception:
                 self.report_error()
-            if self.dirty and self._out is not None and (self.queue.empty() or time.time() - last_render > 0.1):
-                self._render()
-                last_render = time.time()
-            elif self.queue.empty() and self.ack != self._sent_ack:
-                self._sent_ack = self.ack
-                self.send({"type": "ack", "ack": self.ack})
 
     def _process(self, item):
         kind = item[0]
         if kind == "render":
+            self._render_queued = False
             self.dirty = True
         elif kind == "event":
             _, hid, data, seq = item
@@ -357,7 +447,11 @@ class Session:
             if entry is not None:
                 handler, transform = entry
                 ev = Event(hid.rsplit(":", 1)[-1], data)
-                invoke(handler, transform(ev) if transform else ev)
+                started = time.perf_counter()
+                try:
+                    invoke(handler, transform(ev) if transform else ev)
+                finally:
+                    _warn_if_slow(handler, time.perf_counter() - started)
         elif kind == "nav":
             self._set_path(item[1], item[2])
         elif kind == "theme":
@@ -374,10 +468,22 @@ class Session:
                     raise KeyError(f"no exposed function named {name!r}")
                 result = fn(*args)
                 if inspect.iscoroutine(result):
-                    result = asyncio.run(result)
+                    # resolve on the shared loop: the window keeps handling events meanwhile
+                    fut = run_coroutine(result, self)
+                    fut.add_done_callback(lambda f, cid=cid: self._send_result(cid, f))
+                    return
                 self.send({"type": "result", "id": cid, "ok": True, "value": result})
             except Exception as exc:
                 self.send({"type": "result", "id": cid, "ok": False, "error": f"{type(exc).__name__}: {exc}"})
+
+    def _send_result(self, cid, fut):
+        if fut.cancelled():
+            self.send({"type": "result", "id": cid, "ok": False, "error": "CancelledError"})
+        elif fut.exception() is not None:
+            exc = fut.exception()
+            self.send({"type": "result", "id": cid, "ok": False, "error": f"{type(exc).__name__}: {exc}"})
+        else:
+            self.send({"type": "result", "id": cid, "ok": True, "value": fut.result()})
 
     def _render(self):
         self.dirty = False
@@ -613,6 +719,7 @@ class App:
             self.sessions.clear()
         for s in sessions:
             s.close()
+        _shutdown_tasks()
 
     def _initial_theme(self):
         if self.theme in ("dark", "light"):
@@ -637,6 +744,10 @@ class App:
         ``reload=True`` restarts the app whenever a source file changes.
         ``debug=True`` enables the web inspector (right-click > Inspect).
         """
+        if multiprocessing.parent_process() is not None:
+            # A process-pool worker (ui.task(..., process=True)) re-imports the main script
+            # under spawn; it must not open a second window.
+            return None
         self.debug = debug
         if reload and not os.environ.get("PYGUI_CHILD"):
             from .reloader import run_with_reloader

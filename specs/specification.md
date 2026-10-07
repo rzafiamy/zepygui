@@ -35,6 +35,13 @@ drives (WebKit, Chromium).
 - **Transports** — on macOS, an in-process WebKit script-message bridge
   (`macos.py`, no socket). Elsewhere, a loopback WebSocket protected by a
   launch token (`server.py`), shown in a Chromium app window (`window.py`).
+- **Background work** (`tasks.py`) — a shared thread pool, an optional process
+  pool and one asyncio loop. Work started with `ui.task` reports to a `Task` whose
+  status and progress are reactive; completion callbacks return to the window's
+  worker thread.
+- **Streams** (`log.py`) — a `Log` sends each window only the lines it has not
+  seen; the client keeps the lines and draws the visible ones. Large tables and
+  lists are windowed on the Python side instead (only rows in view are rendered).
 
 ## 2. How to read the requirements
 
@@ -85,6 +92,11 @@ the matrix labels them `auto (gui)`.
 | **Backend** | How a window is shown: `native` (macOS WKWebView), `window` (Chromium app window) or `browser`. |
 | **Bridge** | The native transport: WebKit script messages (JS → Python) and `evaluateJavaScript` (Python → JS). |
 | **Launch token** | A random secret in the URL that opens a server-backed window, exchanged for a cookie. |
+| **Task** | A handle on background work started with `ui.task` or `ui.run_command`: reactive `status`, `progress`, `message`; `cancel()`, `wait()`. |
+| **Log** | A bounded, thread-safe line buffer, streamed incrementally to `ui.log_view`. |
+| **Virtual list** | A list or table that renders only the rows in view, from a scroll offset the client reports. |
+| **Field / Form** | A value with validation rules / a named group of fields with a validating submit. |
+| **Frame** | 1/60 s: the shortest interval between two renders of one window. |
 
 ## 4. Feature inventory
 
@@ -130,6 +142,17 @@ the matrix labels them `auto (gui)`.
 | F-21 | Project scaffolding (`python -m pygui new`) |
 | F-22 | JavaScript → Python calls (`@app.expose`) and Python → JavaScript (`ui.run_js`) |
 | F-23 | Periodic background timers (`@app.timer`) |
+
+### 4.5 Heavy workloads and data entry
+
+| # | Feature |
+|---|---|
+| F-24 | Linear-time rendering, no garbage cycles, renders coalesced to one per frame |
+| F-25 | Background tasks on a thread pool, process pool or the shared asyncio loop, with progress and cancellation |
+| F-26 | External commands with line-by-line output streaming |
+| F-27 | Log console streaming 100,000+ lines (`Log`, `ui.log_view`) |
+| F-28 | Virtualized tables and lists (`ui.table(virtual=…)`, `ui.virtual_list`) |
+| F-29 | Input and form validation (`pygui.rules`, `ui.use_form`, `ui.use_field`) |
 
 ## 5. Atomic requirements
 
@@ -187,6 +210,7 @@ the matrix labels them `auto (gui)`.
 - **REQ-EVT-008** The events of one window MUST be handled in the order they arrive. **[T]**
 - **REQ-EVT-009** An event naming a handler absent from the last render MUST be ignored. **[T]**
 - **REQ-EVT-010** `ui.form(on_submit=…)` MUST pass a dict of its named fields, with checkboxes as booleans. **[M]**
+- **REQ-EVT-011** A `throttle` delay MUST be sent to the client in the event spec, and a scroll event MUST carry the element's scroll offset. **[T]**
 
 ### 5.6 Routing (REQ-RTE)
 
@@ -209,6 +233,9 @@ the matrix labels them `auto (gui)`.
 - **REQ-CMP-008** An input bound to a `State` MUST update that `State` on each input event. **[T]**
 - **REQ-CMP-009** `theme_toggle` MUST show the icon of the theme it switches to. **[T]**
 - **REQ-CMP-010** The copy button of `code_block` MUST copy the block's text to the clipboard. **[M]**
+- **REQ-CMP-011** A virtual table or `virtual_list` MUST render only the rows in view plus a margin, and MUST render the rows at a new scroll offset when the client reports it. **[T]**
+- **REQ-CMP-012** While a virtual table scrolls in a window, its DOM MUST hold a bounded number of rows. **[T]**
+- **REQ-CMP-013** `table` MUST switch to virtual rendering when given more than 1,000 rows, unless `virtual` is set. **[T]**
 
 ### 5.8 Theming (REQ-THM)
 
@@ -268,7 +295,50 @@ the matrix labels them `auto (gui)`.
 - **REQ-DEV-006** A function registered with `@app.expose` MUST be callable from JavaScript and return its result, or its error. **[T]**
 - **REQ-DEV-007** A function registered with `@app.timer` MUST run periodically while the app runs, and stop when it ends. **[T]**
 
-### 5.14 Packaging (REQ-PKG)
+### 5.14 Performance (REQ-PRF)
+
+- **REQ-PRF-001** Building and serialising a tree MUST take time linear in its number of elements. **[T]**
+- **REQ-PRF-002** A render MUST NOT leave reference cycles for the garbage collector. **[T]**
+- **REQ-PRF-003** State changes made from other threads MUST leave at most one render request queued per window. **[T]**
+- **REQ-PRF-004** A window MUST render at most once per frame while its state keeps changing. **[T]**
+- **REQ-PRF-005** A built-in icon MUST be sent to the client as a single node. **[T]**
+- **REQ-PRF-006** A handler that blocks its window for more than 250 ms MUST print a warning naming it, once per handler. **[T]**
+
+### 5.15 Background work (REQ-TSK)
+
+- **REQ-TSK-001** `ui.task(fn, …)` MUST return a `Task` at once and run `fn` on a background thread. **[T]**
+- **REQ-TSK-002** `on_done` and `on_error` MUST run on the worker thread of the window that started the task. **[T]**
+- **REQ-TSK-003** A function with a parameter named `task` MUST receive its `Task`, whose `report` MUST update the reactive `progress` and `message`. **[T]**
+- **REQ-TSK-004** `Task.cancel()` MUST keep a pending task from running, MUST stop a running one at its next `check()`, and MUST cancel a coroutine; the status MUST become `cancelled`. **[T]**
+- **REQ-TSK-005** An error raised in a task without `on_error` MUST be shown as an error toast in the starting window. **[T]**
+- **REQ-TSK-006** `ui.task(…, process=True)` MUST run the function in another process and return its result. **[T]**
+- **REQ-TSK-007** `ui.run_command` MUST deliver every output line in order, finish with the exit status (an error for a non-zero status), and `cancel()` MUST terminate the process. **[T]**
+- **REQ-TSK-008** Coroutines from handlers and tasks MUST run on one shared event loop, with the starting window as their current window. **[T]**
+- **REQ-TSK-009** `App.run()` called in a process-pool worker MUST return without opening a window. **[T]**
+
+### 5.16 Log streams (REQ-LOG)
+
+- **REQ-LOG-001** A window showing a `Log` MUST receive every appended line exactly once, in order, batched into fewer messages than lines. **[T]**
+- **REQ-LOG-002** A `Log` MUST keep at most `max_lines` lines, dropping the oldest. **[T]**
+- **REQ-LOG-003** `Log.clear()` MUST empty every open view. **[T]**
+- **REQ-LOG-004** A window that reconnects MUST receive the retained lines again. **[T]**
+- **REQ-LOG-005** `log_view` MUST create DOM nodes only for the lines in view plus a margin, and MUST keep the newest line in view while scrolled to the bottom. **[T]**
+- **REQ-LOG-006** A `Log` MUST accept text written to it as a stream (`print(…, file=log)`), holding back an unfinished line. **[T]**
+
+### 5.17 Validation (REQ-VAL)
+
+- **REQ-VAL-001** A rule MUST return `None` for a valid value and a message otherwise; every rule except `required` MUST accept an empty value. **[T]**
+- **REQ-VAL-002** A field's error MUST stay hidden until the field has been left or its form submitted, and MUST then follow its value. **[T]**
+- **REQ-VAL-003** A form's submit handler MUST NOT be called while a field is invalid, and submitting MUST show every field's error. **[T]**
+- **REQ-VAL-004** A `ValidationError` raised by the submit handler MUST put its messages on the named fields, or a single message on `form.error`. **[T]**
+- **REQ-VAL-005** `submit(…, background=True)` MUST run the handler as a task with `form.submitting` true until it ends. **[T]**
+- **REQ-VAL-006** Editing a field MUST clear the error the submit handler put on it. **[T]**
+- **REQ-VAL-007** `input`, `textarea`, `select`, `checkbox` and `switch` given a `Field` MUST bind its value, show its error and mark it required when it has a `required` rule. **[T]**
+- **REQ-VAL-008** `ui.form` MUST turn off the browser's own validation. **[T]**
+- **REQ-VAL-009** Validation errors MUST appear in the window as the user submits and types. **[T]**
+- **REQ-VAL-010** `rules.matches(name)` MUST compare a value with the named field of the same form. **[T]**
+
+### 5.18 Packaging (REQ-PKG)
 
 - **REQ-PKG-001** The package MUST import only the Python standard library. **[T]**
 - **REQ-PKG-002** The package MUST run on Python 3.9 and later. **[M]**
@@ -292,6 +362,10 @@ hand-kept table does.
 | REQ-DSK | `pygui/desktop.py` | `tests/test_platform.py` |
 | REQ-DEV | `pygui/reloader.py`, `pygui/__main__.py`, `pygui/app.py` | `tests/test_platform.py`, `tests/test_runtime.py` |
 | REQ-PKG | `pyproject.toml`, `pygui/` | `tests/test_platform.py` |
+| REQ-PRF | `pygui/app.py` (`Renderer`, `Session`), `pygui/ui.py` | `tests/test_performance.py` |
+| REQ-TSK | `pygui/tasks.py`, `pygui/state.py` | `tests/test_tasks.py` |
+| REQ-LOG | `pygui/log.py`, `pygui/static/client.js` | `tests/test_log.py`, `tests/test_native.py` |
+| REQ-VAL | `pygui/forms.py`, `pygui/ui.py` | `tests/test_forms.py`, `tests/test_native.py` |
 
 ## 7. Known gaps
 
@@ -320,3 +394,15 @@ current one.
    navigation and screen-reader output have not been reviewed.
 8. **Python 3.9 is the only version exercised** (REQ-PKG-002); 3.10–3.13 are
    expected to work but no run is on record.
+9. **Every render sends the whole tree.** Rendering is linear and coalesced, but a
+   page with tens of thousands of visible elements still costs tens of
+   milliseconds per change; there is no diff on the Python side. Large data should
+   use the virtual components or a `Log`.
+10. **Virtual rows have a fixed height.** Rows of varying height cannot be
+    virtualized; cells in a virtual table do not wrap.
+11. **A running process-pool task cannot be interrupted.** `cancel()` only stops it
+    before it starts.
+12. **Unkeyed siblings are matched by position.** When an element appears or
+    disappears above an unkeyed one, the client reuses DOM nodes one position off,
+    so state the browser keeps (a scroll offset, a focused field) can move to the
+    wrong element. `log_view` keys itself; give other stateful elements a `key`.

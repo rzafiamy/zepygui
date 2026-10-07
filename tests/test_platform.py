@@ -188,7 +188,7 @@ class DevToolTests(unittest.TestCase):
 
 class PackagingTests(unittest.TestCase):
     STDLIB = {"__future__", "asyncio", "base64", "builtins", "ctypes", "functools", "hashlib", "html", "http",
-              "inspect", "json", "math", "mimetypes", "os", "pathlib", "platform", "queue", "re", "secrets",
+              "collections", "concurrent", "contextvars", "itertools", "multiprocessing", "types", "inspect", "json", "math", "mimetypes", "os", "pathlib", "platform", "queue", "re", "secrets",
               "shutil", "signal", "socket", "struct", "subprocess", "sys", "tempfile", "textwrap", "threading",
               "time", "traceback", "urllib", "weakref", "webbrowser"}
 
@@ -208,7 +208,8 @@ class PackagingTests(unittest.TestCase):
 
     def test_static_assets_are_package_data(self):
         """covers: REQ-PKG-003"""
-        self.assertIn('pygui = ["static/*"]', (ROOT / "pyproject.toml").read_text())
+        config = (ROOT / "pyproject.toml").read_text()
+        self.assertIn('"pygui.static" = ["*.js", "*.css"]', config)
         for name in ("client.js", "style.css"):
             self.assertTrue((ROOT / "pygui" / "static" / name).is_file())
 

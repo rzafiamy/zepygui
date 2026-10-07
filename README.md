@@ -40,6 +40,8 @@ No `pip install`, no Node, no Rust toolchain. You only need Python 3.9+.
 | **Reactive** | Change a `State` and every window that shows it re-renders automatically, even from background threads. |
 | **Simple** | Your UI is just Python functions that return components. |
 | **Desktop APIs** | Native open/save/folder dialogs, system notifications, open files/URLs. |
+| **Built for heavy work** | Background tasks with progress and cancel (threads, processes or asyncio), streamed command output, a log console for 100,000+ lines, virtual tables for 100,000+ rows. |
+| **Validation** | Rules, live field errors and validated submits, including errors sent back by your backend. |
 | **Dev friendly** | `app.run(reload=True)` restarts the app on save; `debug=True` enables the web inspector. |
 
 ### How it works
@@ -60,9 +62,17 @@ No `pip install`, no Node, no Rust toolchain. You only need Python 3.9+.
 
 ## Quick start
 
-Make `pygui` importable from anywhere (one time, from this folder):
+Install from [PyPI](https://pypi.org/project/pygui-desktop/) (the package is `pygui-desktop`, you import `pygui`):
 
 ```bash
+python3 -m pip install pygui-desktop
+```
+
+Or, from a clone of [the repository](https://github.com/rzafiamy/pygui), in editable mode:
+
+```bash
+git clone https://github.com/rzafiamy/pygui.git
+cd pygui
 python3 -m pip install -e .
 ```
 
@@ -81,6 +91,9 @@ Or run the examples:
 python examples/hello.py       # counter
 python examples/todo.py        # to-do list
 python examples/dashboard.py   # full app: sidebar, live charts, table, modal, settings, file dialogs
+python examples/console.py     # log console: 70,000 lines, filter, run commands, export
+python examples/files.py       # scan a folder in the background, 100k-row table, hash in a process
+python examples/signup.py      # form validation with live errors and server-side errors
 ```
 
 ---
@@ -176,7 +189,8 @@ async def load():                                      # async handlers work too
     data.set(await fetch())
 ```
 
-Slow work? Use `ui.background(fn, *args)` so the window stays responsive.
+A handler runs on its window's thread, so a slow one freezes that window (PyGUI prints a
+warning when a handler takes longer than 250 ms). Move slow work into a [task](#heavy-work).
 
 ### App shell layout
 
@@ -212,6 +226,8 @@ def layout(content):
 `tabs`, `accordion`, `modal`, `tooltip`, `empty_state`, `theme_toggle`
 
 **Charts:** `line_chart`, `bar_chart`, `donut`, `sparkline`
+
+**Large data:** `virtual_list`, `log_view`, and `table(..., virtual=True)`
 
 **Actions:** `toast`, `navigate`, `set_theme`, `toggle_theme`, `set_title`, `copy`, `run_js`, `background`
 
@@ -260,6 +276,127 @@ ui.open_path(target, reveal=True)                                   # show in Fi
 def tick():
     clock.set(time.strftime("%H:%M:%S"))     # every open window updates
 ```
+
+---
+
+## Heavy work
+
+### Tasks: keep the window responsive
+
+`ui.task` runs a function in the background and returns a `Task` at once. Its `status`,
+`progress` and `message` are `State`s, so a page that reads them updates by itself.
+
+```python
+def copy_folder(src, dst, task):              # a parameter named `task` receives the Task
+    files = list(Path(src).rglob("*"))
+    for i, f in enumerate(files):
+        task.check()                          # raises Cancelled once task.cancel() is called
+        shutil.copy2(f, dst)
+        task.report((i + 1) / len(files), f.name)
+    return len(files)
+
+job = ui.task(copy_folder, src, dst,
+              on_done=lambda n: ui.toast(f"{n} files copied", "success"),   # on the window's thread
+              on_error=lambda e: ui.toast(str(e), "error"))
+
+ui.progress(job.progress.value * 100 if job.progress.value is not None else 0, label=job.message.value)
+ui.button("Cancel", job.cancel)
+```
+
+| Kind of work | How | Runs on |
+|---|---|---|
+| Blocking I/O: files, network, databases | `ui.task(fn, ...)` | shared thread pool (`min(32, cpu + 4)` threads) |
+| `async def` code | `ui.task(coro_fn, ...)`, or an async handler | one shared asyncio loop |
+| CPU-heavy pure functions: hashing, parsing, images | `ui.task(fn, ..., process=True)` | process pool, one process per core |
+| External programs | `ui.run_command(cmd, log=log, on_line=...)` | a reader thread per command |
+
+`process=True` re-imports your script in each worker process: guard `app.run()` with
+`if __name__ == "__main__":` (PyGUI also refuses to open a window from a worker).
+`ui.background(fn, *args)` is the old spelling of `ui.task(fn, *args)`.
+
+Changing `State` from a task is safe and cheap: each window queues at most one redraw and
+renders at most once per frame (60 per second), however fast the values change.
+
+### A log console for 100,000+ lines
+
+A `Log` sends each window only the lines it has not seen yet. The window keeps the lines and
+draws only the ones on screen, so appending stays fast however long the log gets.
+
+```python
+log = Log(max_lines=200_000)                  # oldest lines are dropped beyond this
+
+ui.log_view(log, height=480, filter=query, numbers=True)   # follows the newest line, tints ERROR/WARN
+ui.run_command(["pytest", "-x"], log=log)                  # stream a command's output into it
+log.append("done")                                         # from any thread
+print("also works", file=log)
+log.save("session.log"); log.clear()
+```
+
+### Tables and lists with 100,000+ rows
+
+```python
+ui.table(rows, columns, max_height=480)       # above 1,000 rows it renders only the rows in view
+ui.table(rows, columns, virtual=True, row_height=32)
+ui.virtual_list(files, lambda f: ui.row(ui.icon("file"), ui.text(f["name"])), item_height=36, height=480)
+```
+
+Virtual rows have a fixed height and their cells don't wrap.
+
+### Performance numbers
+
+`python3 bench/bench.py` measures the runtime headless (no window). Typical results on the development Mac with Python 3.9 (numbers vary by a few percent between runs):
+
+| Scenario | Before | Now |
+|---|---|---|
+| Render 5,000 table rows | 3,640 ms | 277 ms |
+| Render a 5,000-row keyed list | 7,107 ms | 511 ms, payload 5.5 → 4.2 MB |
+| Render a 100,000-row table | (minutes) | 5 ms, 12 KB (virtual) |
+| Scroll a 100,000-row table to new rows | — | ~30 ms per step |
+| 50,000 `State.set()` from a thread until the window shows the last | 581 ms, 48 renders | 228 ms, 9 renders |
+| Stream 70,000 log lines into a window | — | 250 ms, 31 messages |
+| Click while slow work runs | 504 ms (blocked) | 22 ms (`ui.task`) |
+| Memory kept after rendering 5,000 rows | 24 MB until the GC runs | 1.9 MB, no garbage cycles |
+
+---
+
+## Validation
+
+Give an input a `Field` instead of a `State`: it binds the value, shows the error and marks
+the field required.
+
+```python
+from pygui import rules, ValidationError
+
+@app.page("/signup")
+def signup():
+    form = ui.use_form(
+        email=("", [rules.required(), rules.email()]),
+        password=("", [rules.required(), rules.min_length(8)]),
+        confirm=("", [rules.matches("password", "Passwords don't match")]),
+        age=(None, [rules.number(min=18, integer=True)]),
+        terms=(False, [rules.required("Accept the terms to continue")]),
+    )
+    return ui.form(
+        ui.input(form.email, label="Email"),
+        ui.input(form.password, type="password", label="Password"),
+        ui.input(form.confirm, type="password", label="Confirm"),
+        ui.input(form.age, type="number", label="Age"),
+        ui.checkbox("I accept the terms", form.terms),
+        ui.button("Create account", submit=True, loading=form.submitting.value),
+        on_submit=form.submit(create_account, background=True, reset=True),
+    )
+
+def create_account(values):                   # called only when every field is valid
+    if db.exists(values["email"]):
+        raise ValidationError({"email": "Already registered"})   # shown under the field
+    db.insert(values)
+```
+
+* An error appears once the user leaves the field (or submits), then follows what they type.
+* Rules: `required`, `min_length`, `max_length`, `pattern`, `email`, `url`, `number(min, max, integer)`,
+  `one_of`, `matches(field)`, and `check(predicate, message)` for your own.
+* A single field: `name = ui.use_field("", rules.required())`, then `ui.input(name)`.
+* `form.values()`, `form.errors()`, `form.valid`, `form.reset()`, `form.set_errors({...})`.
 
 ---
 
@@ -315,13 +452,17 @@ pygui/
   app.py        App, routing, per-window sessions, renderer
   ui.py         component library
   state.py      reactive State
+  tasks.py      background work: thread pool, process pool, asyncio loop, commands
+  log.py        streaming log buffer behind ui.log_view
+  forms.py      validation: Field, Form, rules (also exported as pygui.rules)
   macos.py      native NSWindow + WKWebView via ctypes
   window.py     Edge/Chromium app-window launcher (Windows/Linux)
   server.py     stdlib HTTP + WebSocket server (fallback transport only)
   desktop.py    file dialogs, notifications, open files/URLs
   reloader.py   restart on save
   static/       client runtime (DOM patching) + design system CSS
-examples/       hello.py, todo.py, dashboard.py
+examples/       hello.py, todo.py, dashboard.py, console.py, files.py, signup.py
+bench/          python3 bench/bench.py   (rendering, scheduling, memory, logs, tasks)
 tests/          python3 -m unittest discover -s tests   (headless)
                 PYGUI_GUI_TESTS=1 python3 -m unittest discover -s tests   (+ real native windows, macOS)
                 python3 tests/matrix.py   (rebuild specs/matrix.md; fails on any uncovered requirement)
@@ -339,11 +480,11 @@ licences/      licence texts of third-party material (see CREDITS.md)
 
 ## Specifications
 
-* [`specs/specification.md`](specs/specification.md): what PyGUI does, as atomic, testable requirements
-* [`specs/matrix.md`](specs/matrix.md): traceability matrix, generated by `python3 tests/matrix.py`
-* [`specs/manual.md`](specs/manual.md): manual test procedures for what automation cannot reach
+* [`specs/specification.md`](https://github.com/rzafiamy/pygui/blob/main/specs/specification.md): what PyGUI does, as atomic, testable requirements
+* [`specs/matrix.md`](https://github.com/rzafiamy/pygui/blob/main/specs/matrix.md): traceability matrix, generated by `python3 tests/matrix.py`
+* [`specs/manual.md`](https://github.com/rzafiamy/pygui/blob/main/specs/manual.md): manual test procedures for what automation cannot reach
 
 ## License
 
-MIT License, copyright (c) 2026 Rija Z. See [`LICENSE`](LICENSE).
-Third-party material: [`CREDITS.md`](CREDITS.md).
+MIT License, copyright (c) 2026 rzafiamy. See [`LICENSE`](https://github.com/rzafiamy/pygui/blob/main/LICENSE).
+Third-party material: [`CREDITS.md`](https://github.com/rzafiamy/pygui/blob/main/CREDITS.md).

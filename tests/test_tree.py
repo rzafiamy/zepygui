@@ -3,7 +3,7 @@ import unittest
 
 from helpers import Harness, find, handler_id, has_class, tag, text_of
 
-from pygui import App, State, ui
+from pygui import App, Log, State, ui
 
 
 def render(page_fn, **kw):
@@ -269,11 +269,13 @@ class ComponentTests(unittest.TestCase):
             "line_chart": lambda: ui.line_chart({"a": [1, 2], "b": [2, 1]}),
             "bar_chart": lambda: ui.bar_chart({"a": 1}), "donut": lambda: ui.donut({"a": 1, "b": 2}),
             "sparkline": lambda: ui.sparkline([1, 3, 2]),
+            "virtual_list": lambda: ui.virtual_list(list(range(100)), lambda i: ui.text(str(i))),
+            "log_view": lambda: ui.log_view(Log()),
         }
-        not_components = {"Element", "component", "use_state", "el", "div", "span", "fragment", "html", "session",
+        not_components = {"Element", "component", "use_state", "use_form", "use_field", "el", "div", "span", "fragment", "html", "session",
                           "register_icon", "toast", "navigate", "run_js", "set_title", "set_theme", "toggle_theme",
                           "copy", "background", "open_file", "save_file", "choose_folder", "notify", "open_url",
-                          "open_path"}
+                          "open_path", "task", "run_command"}
         self.assertEqual(set(ui.__all__) - not_components, set(minimal), "a component is missing from this test")
         h = render(lambda: ui.div(*[fn() for fn in minimal.values()]))
         self.assertGreater(len(h.tree["c"][0]["c"]), len(minimal) - 5)

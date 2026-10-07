@@ -1,0 +1,1234 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>PyGUI Sticker Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a pastel sticker book — sticky table of contents on the left, one long column of "pages";
+   concepts are stickers (hard offset shadow), diagrams sit on dotted paper. */
+:root {
+  --bg: #fff4f8;            /* strawberry milk */
+  --dots: #ffd9e7;
+  --paper: #ffffff;
+  --paper-2: #fff0f6;
+  --ink: #45283c;           /* cocoa plum */
+  --ink-2: #7a5670;
+  --muted: #a5869a;
+  --line: #f2c4d6;
+  --edge: #45283c;          /* sticker outline */
+  --pink: #f0609a;
+  --pink-soft: #ffd6e6;
+  --mint: #2fa883;
+  --mint-soft: #c9f2e3;
+  --lav: #8a78f0;
+  --lav-soft: #e3dcff;
+  --butter: #ffd66b;
+  --butter-soft: #fff1c2;
+  --sky: #59b6f0;
+  --sky-soft: #d3ecff;
+  --code-bg: #3a2233;
+  --code-fg: #fbe9f1;
+  --code-k: #ff9cc5; --code-s: #a6f0d2; --code-c: #b893ab; --code-f: #ffd98a;
+  --chart-1: #2fa883; --chart-2: #8a78f0; --chart-3: #f0609a;
+  --display: "Mochiy Pop One", "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Nunito", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 22px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1d1322; --dots: #2c1d33; --paper: #281b30; --paper-2: #31223a;
+    --ink: #fde7f1; --ink-2: #d4b6c9; --muted: #a487a0; --line: #4d3659; --edge: #0f0912;
+    --pink: #ff8bb8; --pink-soft: #4a2440; --mint: #6fe0bd; --mint-soft: #1d3d36;
+    --lav: #b3a8ff; --lav-soft: #2f2a55; --butter: #ffd97a; --butter-soft: #45391c;
+    --sky: #8fd2ff; --sky-soft: #1c3448;
+    --code-bg: #140c18; --code-fg: #fbe9f1;
+    --chart-1: #2fa883; --chart-2: #8a78f0; --chart-3: #e5578f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1d1322; --dots: #2c1d33; --paper: #281b30; --paper-2: #31223a;
+  --ink: #fde7f1; --ink-2: #d4b6c9; --muted: #a487a0; --line: #4d3659; --edge: #0f0912;
+  --pink: #ff8bb8; --pink-soft: #4a2440; --mint: #6fe0bd; --mint-soft: #1d3d36;
+  --lav: #b3a8ff; --lav-soft: #2f2a55; --butter: #ffd97a; --butter-soft: #45391c;
+  --sky: #8fd2ff; --sky-soft: #1c3448;
+  --code-bg: #140c18; --code-fg: #fbe9f1;
+  --chart-1: #2fa883; --chart-2: #8a78f0; --chart-3: #e5578f;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--dots) 1.6px, transparent 1.8px);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font: 500 16px/1.7 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--pink); text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--lav); outline-offset: 3px; border-radius: 8px; }
+code { font-family: var(--mono); font-size: .86em; background: var(--paper-2); border: 1px solid var(--line); padding: .05em .4em; border-radius: 7px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; line-height: 1.25; text-wrap: balance; margin: 0; }
+h2 { font-size: clamp(1.6rem, 3.2vw, 2.15rem); }
+h3 { font-size: 1.12rem; }
+p { margin: 0; }
+
+/* ---------- top bar ---------- */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 2px dashed var(--line);
+}
+.top-in { max-width: 1240px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 14px; align-items: center; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 1.15rem; color: var(--ink); text-decoration: none; flex-shrink: 0; }
+.brand svg { width: 34px; height: 34px; }
+.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; min-width: 0; padding: 4px 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chips a {
+  flex-shrink: 0; text-decoration: none; color: var(--ink-2); font-weight: 700; font-size: .82rem;
+  background: var(--paper); border: 2px solid var(--line); border-radius: 999px; padding: 3px 12px;
+}
+.chips a:hover { border-color: var(--pink); color: var(--pink); }
+@media (min-width: 1080px) { .chips { display: none; } }
+
+/* ---------- page grid ---------- */
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 80px; display: grid; gap: 40px; }
+@media (min-width: 1080px) { .wrap { grid-template-columns: 230px minmax(0, 1fr); padding-inline: 28px; } }
+.toc { display: none; }
+@media (min-width: 1080px) {
+  .toc { display: block; position: sticky; top: 90px; align-self: start; max-height: calc(100vh - 110px); overflow-y: auto; }
+}
+.toc-card { background: var(--paper); border: 2px solid var(--edge); border-radius: var(--r); box-shadow: 5px 5px 0 var(--pink); padding: 18px 14px; }
+.toc-card .lbl { font-family: var(--display); font-size: .85rem; color: var(--pink); padding: 0 8px 8px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; counter-reset: t; }
+.toc li a {
+  display: flex; gap: 8px; align-items: baseline; text-decoration: none; color: var(--ink-2);
+  font-size: .86rem; font-weight: 700; padding: 4px 8px; border-radius: 10px;
+}
+.toc li a::before { counter-increment: t; content: counter(t, decimal-leading-zero); font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+.toc li a:hover, .toc li a.on { background: var(--pink-soft); color: var(--ink); }
+main { min-width: 0; display: grid; gap: 72px; }
+
+/* ---------- hero ---------- */
+.hero { display: grid; gap: 28px; align-items: center; }
+@media (min-width: 820px) { .hero { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); } }
+.hero h1 { font-size: clamp(2.5rem, 7vw, 4.6rem); letter-spacing: -.01em; }
+.hero h1 .py { color: var(--pink); }
+.hero .kana { font-family: var(--display); color: var(--lav); font-size: 1rem; letter-spacing: .12em; }
+.hero .lead { font-size: 1.15rem; color: var(--ink-2); max-width: 36ch; margin-top: 14px; }
+.hero-art { position: relative; justify-self: center; width: min(340px, 100%); }
+.hero-art svg { width: 100%; height: auto; display: block; }
+.bubble {
+  position: absolute; top: 2%; right: -2%; background: var(--paper); border: 2px solid var(--edge);
+  border-radius: 18px; padding: 6px 12px; font-weight: 800; font-size: .85rem; box-shadow: 3px 3px 0 var(--mint);
+  transform: rotate(4deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bob { animation: bob 3.2s ease-in-out infinite; transform-origin: 50% 90%; }
+  @keyframes bob { 50% { transform: translateY(-6px) rotate(-1.5deg); } }
+  .blink { animation: blink 4.5s infinite; transform-origin: center; transform-box: fill-box; }
+  @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+}
+.stickers { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+.stk {
+  background: var(--paper); border: 2px solid var(--edge); border-radius: 16px; padding: 8px 14px 9px;
+  box-shadow: 3px 3px 0 var(--c, var(--pink)); display: grid; line-height: 1.2;
+}
+.stk:nth-child(odd) { transform: rotate(-1.5deg); }
+.stk:nth-child(even) { transform: rotate(1.2deg); }
+.stk b { font-family: var(--display); font-weight: 400; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.stk span { font-size: .78rem; color: var(--ink-2); font-weight: 700; }
+
+/* ---------- sections ---------- */
+section { scroll-margin-top: 80px; display: grid; gap: 22px; }
+.eyebrow { display: flex; gap: 10px; align-items: center; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; color: var(--pink); }
+.eyebrow .face { font-family: var(--body); letter-spacing: 0; text-transform: none; color: var(--lav); font-size: .95rem; }
+.sec-head { display: grid; gap: 8px; }
+.sec-head p { color: var(--ink-2); max-width: 66ch; }
+.prose { display: grid; gap: 12px; max-width: 70ch; color: var(--ink-2); }
+.prose strong { color: var(--ink); }
+
+.paper {
+  background-color: var(--paper);
+  background-image: radial-gradient(var(--line) 1px, transparent 1.2px);
+  background-size: 16px 16px;
+  border: 2px solid var(--line); border-radius: var(--r); padding: 18px;
+}
+figure { margin: 0; display: grid; gap: 10px; }
+figcaption { font-size: .88rem; color: var(--muted); font-weight: 700; padding-inline: 4px; }
+.scroll-x { overflow-x: auto; }
+.diagram { display: block; width: 100%; min-width: 640px; height: auto; color: var(--ink); }
+.diagram.narrow { min-width: 520px; }
+
+/* svg classes (page CSS, themed by tokens) */
+.d-box { fill: var(--paper); stroke: var(--edge); stroke-width: 2; }
+.d-pink { fill: var(--pink-soft); } .d-mint { fill: var(--mint-soft); } .d-lav { fill: var(--lav-soft); }
+.d-butter { fill: var(--butter-soft); } .d-sky { fill: var(--sky-soft); }
+.d-t { fill: var(--ink); font: 700 13px var(--body); }
+.d-h { fill: var(--ink); font: 400 14px var(--display); }
+.d-s { fill: var(--ink-2); font: 500 11.5px var(--mono); }
+.d-l { fill: var(--ink-2); font: 700 11.5px var(--body); }
+.d-arrow { stroke: var(--ink); stroke-width: 2; fill: none; }
+.d-back { stroke: var(--pink); stroke-width: 2.2; fill: none; stroke-dasharray: 6 5; }
+.d-life { stroke: var(--line); stroke-width: 2; stroke-dasharray: 3 5; }
+.d-head { fill: var(--ink); } .d-headp { fill: var(--pink); }
+.d-pinkt { fill: var(--pink); font: 800 11.5px var(--body); }
+
+/* ---------- code ---------- */
+.code {
+  background: var(--code-bg); color: var(--code-fg); border-radius: 18px; padding: 16px 18px;
+  font: 400 13.5px/1.65 var(--mono); overflow-x: auto; margin: 0; border: 2px solid var(--edge);
+  box-shadow: 4px 4px 0 var(--lav);
+}
+.code .k { color: var(--code-k); } .code .s { color: var(--code-s); } .code .c { color: var(--code-c); font-style: italic; } .code .f { color: var(--code-f); }
+.code-tag { display: inline-block; font: 700 .72rem var(--mono); color: var(--ink-2); background: var(--butter-soft); border: 2px solid var(--edge); border-radius: 10px 10px 0 0; border-bottom: 0; padding: 2px 10px; margin-left: 16px; }
+.duo { display: grid; gap: 18px; }
+@media (min-width: 900px) { .duo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.duo > * { min-width: 0; }
+
+/* ---------- concept stickers ---------- */
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+.card {
+  background: var(--paper); border: 2px solid var(--edge); border-radius: 18px; padding: 14px 16px 16px;
+  box-shadow: 4px 4px 0 var(--c, var(--pink)); display: grid; gap: 6px; align-content: start; min-width: 0;
+  transition: transform .15s ease;
+}
+.card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--c, var(--pink)); }
+.card h3 { display: flex; gap: 8px; align-items: center; }
+.card p { font-size: .92rem; color: var(--ink-2); }
+.card .where { font: 600 .74rem var(--mono); color: var(--muted); word-break: break-word; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c, var(--pink)); border: 2px solid var(--edge); flex-shrink: 0; }
+.c-pink { --c: var(--pink); } .c-mint { --c: var(--mint); } .c-lav { --c: var(--lav); } .c-butter { --c: var(--butter); } .c-sky { --c: var(--sky); }
+
+/* ---------- tables ---------- */
+.tbl-wrap { overflow-x: auto; border: 2px solid var(--edge); border-radius: 18px; background: var(--paper); box-shadow: 4px 4px 0 var(--mint); }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: .9rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1.5px dashed var(--line); vertical-align: top; }
+th { font-family: var(--display); font-weight: 400; font-size: .85rem; background: var(--paper-2); color: var(--ink); }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-weight: 800; color: var(--ink); white-space: nowrap; }
+td { color: var(--ink-2); }
+
+/* ---------- steps (real sequences only) ---------- */
+.lanes { display: grid; gap: 18px; }
+@media (min-width: 900px) { .lanes { grid-template-columns: 1fr 1fr; } }
+.lane { background: var(--paper); border: 2px solid var(--edge); border-radius: var(--r); padding: 18px; box-shadow: 5px 5px 0 var(--c); display: grid; gap: 12px; align-content: start; min-width: 0; }
+.lane .tag { justify-self: start; font-size: .74rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; background: var(--c); color: var(--paper); padding: 2px 10px; border-radius: 999px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; font-size: .92rem; color: var(--ink-2); }
+.steps li::before {
+  counter-increment: s; content: counter(s); display: grid; place-items: center; width: 26px; height: 26px;
+  border-radius: 50%; border: 2px solid var(--edge); background: var(--paper-2); font: 800 .78rem var(--body); color: var(--ink);
+}
+.steps b { color: var(--ink); }
+
+/* ---------- component pills ---------- */
+.shelf { display: grid; gap: 14px; }
+.shelf-row { display: grid; gap: 8px; }
+@media (min-width: 700px) { .shelf-row { grid-template-columns: 120px minmax(0, 1fr); align-items: baseline; } }
+.shelf-row h3 { font-size: .95rem; color: var(--c); }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pills code { background: var(--paper); border: 2px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: .8rem; }
+
+/* ---------- charts ---------- */
+.chart-card { background: var(--paper); border: 2px solid var(--edge); border-radius: var(--r); padding: 18px; display: grid; gap: 12px; box-shadow: 5px 5px 0 var(--butter); min-width: 0; }
+.chart-card h3 { font-size: 1rem; }
+.chart-card .sub { font-size: .84rem; color: var(--muted); font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .84rem; font-weight: 700; color: var(--ink-2); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+.bar-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 46px; gap: 10px; align-items: center; font-size: .82rem; }
+.bar-row .n { font-family: var(--mono); color: var(--ink-2); font-weight: 600; }
+.bar-row .v { font-family: var(--mono); color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
+.track { height: 14px; position: relative; }
+.track::before { content: ""; position: absolute; inset: 6px 0; border-top: 1.5px dashed var(--line); }
+.fill { position: relative; height: 100%; border-radius: 0 6px 6px 0; background: var(--pink); }
+.bar-row:hover .fill { background: var(--lav); }
+.grid-2 { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
+.tbl-fit table { min-width: 0; font-size: .86rem; }
+.tbl-fit th, .tbl-fit td { padding: 9px 12px; }
+.tbl-fit td:first-child { white-space: normal; }
+.bars-wide .bar-row { grid-template-columns: minmax(110px, 170px) minmax(0, 1fr) 52px; }
+.top-links { display: flex; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.top-links a {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--ink); font-weight: 800; font-size: .82rem;
+  background: var(--paper); border: 2px solid var(--edge); border-radius: 999px; padding: 4px 12px; box-shadow: 2px 2px 0 var(--lav);
+}
+.top-links a:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--pink); }
+.top-links svg, .links svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 640px) { .top-links span { display: none; } .top-links a { padding: 5px 8px; } }
+.install { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 22px; }
+.install code {
+  font-size: .95rem; background: var(--code-bg); color: var(--code-fg); border: 2px solid var(--edge);
+  padding: 8px 14px; border-radius: 14px; box-shadow: 3px 3px 0 var(--mint); white-space: nowrap;
+}
+.install code::before { content: "$ "; color: var(--code-c); }
+.copy-btn {
+  font: 800 .82rem var(--body); color: var(--ink); background: var(--butter-soft); border: 2px solid var(--edge);
+  border-radius: 999px; padding: 6px 14px; cursor: pointer;
+}
+.links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.links a { display: inline-flex; gap: 6px; align-items: center; font-weight: 800; font-size: .9rem; }
+.stack { display: flex; height: 34px; gap: 2px; }
+.stack div { border-radius: 4px; display: grid; place-items: center; font: 800 .8rem var(--body); color: #fff; min-width: 0; }
+.stack div:first-child { border-radius: 10px 4px 4px 10px; }
+.stack div:last-child { border-radius: 4px 10px 10px 4px; }
+.stack div:hover { filter: brightness(1.08); }
+.tip {
+  position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--bg);
+  font: 700 .8rem var(--body); padding: 5px 10px; border-radius: 10px; transform: translate(-50%, calc(-100% - 12px));
+  white-space: nowrap;
+}
+
+/* ---------- roadmap ---------- */
+.gaps { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.gap { border: 2px dashed var(--line); border-radius: 16px; padding: 12px 14px; background: var(--paper); display: grid; gap: 4px; }
+.gap b { font-size: .95rem; }
+.gap p { font-size: .86rem; color: var(--ink-2); }
+
+footer { text-align: center; color: var(--muted); font-size: .85rem; font-weight: 700; display: grid; gap: 6px; justify-items: center; padding-top: 10px; }
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="#intro" aria-label="PyGUI home">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="6" width="30" height="27" rx="13" fill="var(--mint)" stroke="var(--edge)" stroke-width="2.5"/><circle cx="15" cy="18" r="2.6" fill="var(--edge)"/><circle cx="25" cy="18" r="2.6" fill="var(--edge)"/><ellipse cx="11.5" cy="23" rx="3" ry="2" fill="var(--pink)" opacity=".7"/><ellipse cx="28.5" cy="23" rx="3" ry="2" fill="var(--pink)" opacity=".7"/></svg>
+      PyGUI
+    </a>
+    <nav class="chips" aria-label="Sections">
+      <a href="#quick">Hello</a><a href="#arch">Architecture</a><a href="#modules">Modules</a><a href="#concepts">Concepts</a>
+      <a href="#state">State</a><a href="#session">Session</a><a href="#events">Events</a><a href="#render">Renderer</a>
+      <a href="#patch">Patching</a><a href="#transport">Transports</a><a href="#patterns">Patterns</a><a href="#components">Components</a>
+      <a href="#theming">Theming</a><a href="#security">Security</a><a href="#devx">Dev tools</a><a href="#quality">Quality</a><a href="#perf">Performance</a><a href="#roadmap">Roadmap</a>
+    </nav>
+    <div class="top-links">
+      <a href="https://github.com/rzafiamy/pygui" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg><span>GitHub</span></a>
+      <a href="https://pypi.org/project/pygui-desktop/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>PyPI</span></a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="toc" aria-label="Table of contents">
+    <div class="toc-card">
+      <div class="lbl">もくじ · contents</div>
+      <ol>
+        <li><a href="#quick">Hello, window</a></li>
+        <li><a href="#arch">Architecture</a></li>
+        <li><a href="#modules">Module map</a></li>
+        <li><a href="#concepts">Core concepts</a></li>
+        <li><a href="#state">Reactive State</a></li>
+        <li><a href="#session">Session worker</a></li>
+        <li><a href="#events">Event lifecycle</a></li>
+        <li><a href="#render">Renderer &amp; hooks</a></li>
+        <li><a href="#patch">DOM patching</a></li>
+        <li><a href="#transport">Transports</a></li>
+        <li><a href="#patterns">Design patterns</a></li>
+        <li><a href="#components">Components</a></li>
+        <li><a href="#theming">Theming</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#devx">Dev tools</a></li>
+        <li><a href="#quality">Specs &amp; tests</a></li>
+        <li><a href="#perf">Performance</a></li>
+        <li><a href="#roadmap">Known gaps</a></li>
+      </ol>
+    </div>
+  </aside>
+
+  <main>
+    <!-- HERO -->
+    <section id="intro" class="hero">
+      <div>
+        <div class="kana">パイ・ジー・ユー・アイ · v0.1.0</div>
+        <h1><span class="py">Py</span>GUI</h1>
+        <p class="lead">Beautiful native desktop apps in pure Python, with zero dependencies. A developer's sticker book of how it all fits together.</p>
+        <div class="install">
+          <code id="pip-cmd">pip install pygui-desktop</code>
+          <button class="copy-btn" id="copy-pip" type="button">Copy</button>
+        </div>
+        <div class="links">
+          <a href="https://github.com/rzafiamy/pygui" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>github.com/rzafiamy/pygui</a>
+          <a href="https://pypi.org/project/pygui-desktop/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>pypi.org/project/pygui-desktop</a>
+          <a href="https://github.com/rzafiamy" target="_blank" rel="noopener">@rzafiamy</a>
+        </div>
+        <div class="stickers">
+          <div class="stk c-mint"><b>0</b><span>runtime dependencies</span></div>
+          <div class="stk c-pink"><b>50+</b><span>components</span></div>
+          <div class="stk c-lav"><b>134</b><span>requirements · 0 uncovered</span></div>
+          <div class="stk c-butter"><b>111</b><span>automated tests</span></div>
+          <div class="stk c-sky"><b>3.9+</b><span>Python</span></div>
+        </div>
+      </div>
+      <div class="hero-art">
+        <div class="bubble">ssss-tate.set()!</div>
+        <svg viewBox="0 0 220 200" role="img" aria-label="Pyon, a round mint python mascot sitting on its coils">
+          <g class="bob">
+            <ellipse cx="110" cy="176" rx="86" ry="18" fill="var(--mint-soft)" stroke="var(--edge)" stroke-width="3"/>
+            <ellipse cx="110" cy="152" rx="70" ry="20" fill="var(--mint)" stroke="var(--edge)" stroke-width="3"/>
+            <path d="M176 172 q20 -4 22 -18 q1 -8 -6 -9" fill="none" stroke="var(--edge)" stroke-width="3" stroke-linecap="round"/>
+            <rect x="52" y="34" width="116" height="112" rx="54" fill="var(--mint)" stroke="var(--edge)" stroke-width="3"/>
+            <ellipse cx="110" cy="122" rx="34" ry="18" fill="var(--mint-soft)"/>
+            <g class="blink"><circle cx="88" cy="84" r="9" fill="var(--edge)"/><circle cx="132" cy="84" r="9" fill="var(--edge)"/></g>
+            <circle cx="91" cy="80" r="3" fill="#fff"/><circle cx="135" cy="80" r="3" fill="#fff"/>
+            <ellipse cx="74" cy="102" rx="11" ry="6.5" fill="var(--pink)" opacity=".75"/>
+            <ellipse cx="146" cy="102" rx="11" ry="6.5" fill="var(--pink)" opacity=".75"/>
+            <path d="M102 100 q4 5 8 0 q4 5 8 0" fill="none" stroke="var(--edge)" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M110 106 v8 l-4 5 M110 114 l4 5" fill="none" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M92 38 q-14 -18 -26 -8 q10 12 26 8 z M128 38 q14 -18 26 -8 q-10 12 -26 8 z" fill="var(--pink)" stroke="var(--edge)" stroke-width="2.5" stroke-linejoin="round"/>
+            <circle cx="110" cy="37" r="8" fill="var(--pink)" stroke="var(--edge)" stroke-width="2.5"/>
+            <path d="M28 56 l4 -10 l4 10 l10 4 l-10 4 l-4 10 l-4 -10 l-10 -4 z" fill="var(--butter)" stroke="var(--edge)" stroke-width="2"/>
+            <path d="M190 96 l3 -7 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 z" fill="var(--lav)" stroke="var(--edge)" stroke-width="2"/>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <!-- QUICK -->
+    <section id="quick">
+      <div class="sec-head">
+        <div class="eyebrow">01 · Hello, window <span class="face">(｡•ᴗ•｡)</span></div>
+        <h2>A window in twelve lines</h2>
+        <p>Pages are Python functions that return a tree of components. Change a <code>State</code> and every window showing it redraws. No <code>pip install</code>, no Node, no Rust toolchain.</p>
+      </div>
+      <div class="duo">
+        <div>
+          <span class="code-tag">hello.py</span>
+<pre class="code"><span class="k">from</span> pygui <span class="k">import</span> App, State, ui
+
+app = <span class="f">App</span>(<span class="s">"Hello"</span>)
+count = <span class="f">State</span>(<span class="s">0</span>)
+
+<span class="f">@app.page</span>(<span class="s">"/"</span>)
+<span class="k">def</span> <span class="f">home</span>():
+    <span class="k">return</span> ui.<span class="f">column</span>(
+        ui.<span class="f">h1</span>(<span class="s">f"Clicked {count.value} times"</span>),
+        ui.<span class="f">button</span>(<span class="s">"Click me"</span>, <span class="k">lambda</span>: count.<span class="f">set</span>(count.value + <span class="s">1</span>)),
+    )
+
+app.<span class="f">run</span>()</pre>
+        </div>
+        <div>
+          <span class="code-tag">terminal</span>
+<pre class="code"><span class="c"># one time, from the repo folder</span>
+python3 -m pip install -e .
+
+<span class="c"># scaffold an app with sidebar, pages, theme toggle</span>
+python3 -m pygui new myapp
+python3 myapp/app.py
+
+<span class="c"># or run the examples straight from the repo</span>
+python examples/hello.py       <span class="c"># counter</span>
+python examples/todo.py        <span class="c"># keyed list, filters</span>
+python examples/dashboard.py   <span class="c"># charts, table, modal</span>
+
+<span class="c"># run options</span>
+app.<span class="f">run</span>(reload=<span class="k">True</span>)        <span class="c"># restart on save</span>
+app.<span class="f">run</span>(debug=<span class="k">True</span>)         <span class="c"># web inspector</span>
+app.<span class="f">run</span>(mode=<span class="s">"browser"</span>)     <span class="c"># default browser</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARCH -->
+    <section id="arch">
+      <div class="sec-head">
+        <div class="eyebrow">02 · Architecture <span class="face">( ˘ᵕ˘ )</span></div>
+        <h2>One loop, two worlds</h2>
+        <p>Your logic stays in Python. The window is a system web engine that only knows how to patch a DOM and report events. Between them travels plain JSON: whole trees going out, tiny event messages coming back.</p>
+      </div>
+      <figure class="paper">
+        <div class="scroll-x">
+        <svg class="diagram" viewBox="0 0 960 330" role="img" aria-label="Page functions build an element tree; the Renderer turns it into JSON sent through the transport to client.js, which patches the DOM. DOM events return to the Session worker, which runs handlers that set State and trigger the next render.">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-head"/></marker>
+            <marker id="ahp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-headp"/></marker>
+          </defs>
+          <!-- python side band -->
+          <rect x="8" y="8" width="530" height="314" rx="22" fill="none" stroke="var(--mint)" stroke-width="2" stroke-dasharray="4 6"/>
+          <text x="24" y="30" class="d-pinkt" style="fill:var(--mint)">PYTHON PROCESS</text>
+          <rect x="560" y="8" width="392" height="314" rx="22" fill="none" stroke="var(--lav)" stroke-width="2" stroke-dasharray="4 6"/>
+          <text x="576" y="30" class="d-pinkt" style="fill:var(--lav)">WEB ENGINE (WKWebView / Chromium)</text>
+
+          <rect x="24" y="52" width="150" height="80" rx="18" class="d-box d-mint"/>
+          <text x="99" y="80" text-anchor="middle" class="d-h">Your code</text>
+          <text x="99" y="100" text-anchor="middle" class="d-s">@app.page</text>
+          <text x="99" y="116" text-anchor="middle" class="d-s">State · ui.*</text>
+
+          <rect x="212" y="52" width="150" height="80" rx="18" class="d-box d-butter"/>
+          <text x="287" y="80" text-anchor="middle" class="d-h">Renderer</text>
+          <text x="287" y="100" text-anchor="middle" class="d-s">Element tree</text>
+          <text x="287" y="116" text-anchor="middle" class="d-s">→ JSON tree</text>
+
+          <rect x="400" y="52" width="122" height="80" rx="18" class="d-box d-sky"/>
+          <text x="461" y="80" text-anchor="middle" class="d-h">Transport</text>
+          <text x="461" y="100" text-anchor="middle" class="d-s">bridge (mac)</text>
+          <text x="461" y="116" text-anchor="middle" class="d-s">WebSocket</text>
+
+          <rect x="590" y="52" width="150" height="80" rx="18" class="d-box d-lav"/>
+          <text x="665" y="80" text-anchor="middle" class="d-h">client.js</text>
+          <text x="665" y="100" text-anchor="middle" class="d-s">patchChildren()</text>
+          <text x="665" y="116" text-anchor="middle" class="d-s">listener()</text>
+
+          <rect x="784" y="52" width="150" height="80" rx="18" class="d-box d-pink"/>
+          <text x="859" y="86" text-anchor="middle" class="d-h">DOM</text>
+          <text x="859" y="108" text-anchor="middle" class="d-s">design-system CSS</text>
+
+          <line x1="174" y1="92" x2="208" y2="92" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="191" y="84" text-anchor="middle" class="d-l">calls</text>
+          <line x1="362" y1="92" x2="396" y2="92" class="d-arrow" marker-end="url(#ah)"/>
+          <line x1="522" y1="92" x2="586" y2="92" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="554" y="84" text-anchor="middle" class="d-l">render</text>
+          <line x1="740" y1="92" x2="780" y2="92" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="760" y="84" text-anchor="middle" class="d-l">patch</text>
+
+          <rect x="212" y="214" width="310" height="86" rx="18" class="d-box"/>
+          <text x="367" y="240" text-anchor="middle" class="d-h">Session · worker thread</text>
+          <text x="367" y="262" text-anchor="middle" class="d-s">queue: event · nav · theme · fn · call</text>
+          <text x="367" y="282" text-anchor="middle" class="d-s">one per window · renders when idle</text>
+
+          <!-- event back path -->
+          <path d="M859 132 V257 H526" class="d-back" marker-end="url(#ahp)"/>
+          <text x="700" y="248" text-anchor="middle" class="d-pinkt">event {h, d, s}</text>
+          <!-- session invokes handler -->
+          <path d="M212 257 H99 V136" class="d-back" marker-end="url(#ahp)"/>
+          <text x="104" y="190" class="d-pinkt">invoke handler</text>
+          <text x="104" y="206" class="d-pinkt">→ State.set()</text>
+          <!-- session triggers render -->
+          <line x1="287" y1="214" x2="287" y2="136" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="294" y="180" class="d-l">_render() when queue empty</text>
+        </svg>
+        </div>
+        <figcaption>The whole framework is this cycle. Python never touches the DOM, and the browser never runs app logic.</figcaption>
+      </figure>
+    </section>
+
+    <!-- MODULES -->
+    <section id="modules">
+      <div class="sec-head">
+        <div class="eyebrow">03 · Module map <span class="face">ʕ•ᴥ•ʔ</span></div>
+        <h2>What lives where</h2>
+        <p>About 4,200 lines in the package, all standard library. The component library is the biggest piece; the native macOS window is only 358 lines of <code>ctypes</code>.</p>
+      </div>
+      <div class="duo">
+        <div class="chart-card" id="loc-chart">
+          <div><h3>Lines per file</h3><div class="sub">pygui/ package, counted with wc -l · hover a bar</div></div>
+        </div>
+        <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));">
+          <div class="card c-mint"><h3><span class="dot"></span>app.py</h3><p>App, routing, Session, Renderer, both run loops.</p></div>
+          <div class="card c-pink"><h3><span class="dot"></span>ui.py</h3><p>Element, @component, use_state, every widget, charts, icons, markdown.</p></div>
+          <div class="card c-lav"><h3><span class="dot"></span>state.py</h3><p>State, thread-local runtime context, invoke() by arity, spawn().</p></div>
+          <div class="card c-sky"><h3><span class="dot"></span>macos.py</h3><p>NSWindow + WKWebView via objc_msgSend, menus, main-queue dispatch.</p></div>
+          <div class="card c-butter"><h3><span class="dot"></span>server.py · window.py</h3><p>Stdlib HTTP + WebSocket fallback, Chromium app-window launcher.</p></div>
+          <div class="card c-mint"><h3><span class="dot"></span>static/</h3><p>client.js (DOM patching, events) and style.css (design system).</p></div>
+          <div class="card c-pink"><h3><span class="dot"></span>desktop.py</h3><p>Dialogs, notifications, open URL/path via osascript, PowerShell, zenity.</p></div>
+          <div class="card c-lav"><h3><span class="dot"></span>reloader.py · __main__.py</h3><p>Restart-on-save supervisor; <code>pygui new</code> scaffolder.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONCEPTS -->
+    <section id="concepts">
+      <div class="sec-head">
+        <div class="eyebrow">04 · Core concepts <span class="face">(✿◠‿◠)</span></div>
+        <h2>The vocabulary, one sticker each</h2>
+        <p>These are the terms from the specification. Everything else in this book is built from them.</p>
+      </div>
+      <div class="grid">
+        <div class="card c-mint"><h3><span class="dot"></span>App</h3><p>Routes, layout, timers, exposed functions, theme and window settings. The facade you talk to.</p><div class="where">app.py · App</div></div>
+        <div class="card c-mint"><h3><span class="dot"></span>Page</h3><p>A function under <code>@app.page(path)</code>. Typed params: <code>{id:int}</code>, <code>{x:float}</code>, <code>{p:path}</code>.</p><div class="where">app.py · Route</div></div>
+        <div class="card c-mint"><h3><span class="dot"></span>Layout</h3><p><code>@app.layout</code> receives each page's content and returns the shell around it.</p><div class="where">app.py · App.layout</div></div>
+        <div class="card c-pink"><h3><span class="dot"></span>Element</h3><p>Tag, attrs, events, children, optional key. Built by nested calls or <code>with</code> blocks.</p><div class="where">ui.py · Element</div></div>
+        <div class="card c-pink"><h3><span class="dot"></span>Component</h3><p><code>@ui.component</code> makes a lazy call with its own hook state, rendered later by the Renderer.</p><div class="where">ui.py · ComponentCall</div></div>
+        <div class="card c-lav"><h3><span class="dot"></span>State</h3><p>Reactive value. Reading it during a render subscribes the window; setting it re-renders subscribers.</p><div class="where">state.py · State</div></div>
+        <div class="card c-lav"><h3><span class="dot"></span>Hook</h3><p><code>ui.use_state</code>: per-window State keyed by position in the tree.</p><div class="where">app.py · Renderer.hook</div></div>
+        <div class="card c-sky"><h3><span class="dot"></span>Session</h3><p>One per window: path, query, theme, hooks, handlers and a dedicated worker thread.</p><div class="where">app.py · Session</div></div>
+        <div class="card c-sky"><h3><span class="dot"></span>Render</h3><p>Build the complete JSON tree and send it with the latest <b>ack</b>.</p><div class="where">Session._render</div></div>
+        <div class="card c-butter"><h3><span class="dot"></span>Handler &amp; event spec</h3><p>A Python callable on an element event. The client only gets its id plus <code>keys</code>, <code>debounce</code>, <code>prevent</code>, <code>stop</code>, <code>self</code>.</p><div class="where">Renderer.ser_element</div></div>
+        <div class="card c-butter"><h3><span class="dot"></span>Sequence &amp; ack</h3><p>The client numbers each event; each render carries the highest number Python has processed.</p><div class="where">client.js · emit / setAttr</div></div>
+        <div class="card c-pink"><h3><span class="dot"></span>Backend &amp; bridge</h3><p><code>native</code>, <code>window</code> or <code>browser</code>. Native uses WebKit script messages, with no socket.</p><div class="where">macos.py · server.py</div></div>
+      </div>
+    </section>
+
+    <!-- STATE -->
+    <section id="state">
+      <div class="sec-head">
+        <div class="eyebrow">05 · Reactive State <span class="face">(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧</span></div>
+        <h2>Read to subscribe, set to redraw</h2>
+        <p>There is no dependency declaration. Whatever a page reads while it renders is what it depends on. Subscriptions live in a <code>WeakSet</code>, so a closed window is never kept alive by the values it once read.</p>
+      </div>
+      <figure class="paper">
+        <div class="scroll-x">
+        <svg class="diagram" viewBox="0 0 900 250" role="img" aria-label="During a render, reading State.value adds the rendering session to the State's weak subscriber set. Setting a new value calls notify, which invalidates every subscribed session. Equal immutable values stop early.">
+          <rect x="20" y="40" width="170" height="70" rx="18" class="d-box d-sky"/>
+          <text x="105" y="70" text-anchor="middle" class="d-h">Session render</text>
+          <text x="105" y="92" text-anchor="middle" class="d-s">_local.rendering = s</text>
+
+          <rect x="340" y="30" width="220" height="90" rx="18" class="d-box d-lav"/>
+          <text x="450" y="60" text-anchor="middle" class="d-h">State</text>
+          <text x="450" y="82" text-anchor="middle" class="d-s">_value</text>
+          <text x="450" y="100" text-anchor="middle" class="d-s">_subs: WeakSet[Session]</text>
+
+          <line x1="190" y1="62" x2="336" y2="62" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="263" y="54" text-anchor="middle" class="d-l">reads .value</text>
+          <path d="M336 96 H195" class="d-back" marker-end="url(#ahp)"/>
+          <text x="263" y="114" text-anchor="middle" class="d-pinkt">subs.add(session)</text>
+
+          <rect x="20" y="160" width="170" height="64" rx="18" class="d-box d-mint"/>
+          <text x="105" y="188" text-anchor="middle" class="d-h">Any thread</text>
+          <text x="105" y="208" text-anchor="middle" class="d-s">handler · timer · async</text>
+
+          <rect x="300" y="160" width="190" height="64" rx="18" class="d-box d-butter"/>
+          <text x="395" y="186" text-anchor="middle" class="d-t">equal &amp; immutable?</text>
+          <text x="395" y="206" text-anchor="middle" class="d-s">int str tuple None …</text>
+
+          <rect x="640" y="160" width="240" height="64" rx="18" class="d-box d-pink"/>
+          <text x="760" y="186" text-anchor="middle" class="d-h">session.invalidate()</text>
+          <text x="760" y="206" text-anchor="middle" class="d-s">worker: dirty · else queue "render"</text>
+
+          <line x1="190" y1="192" x2="296" y2="192" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="243" y="184" text-anchor="middle" class="d-l">.set(new)</text>
+          <line x1="490" y1="192" x2="636" y2="192" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="563" y="184" text-anchor="middle" class="d-l">no → notify()</text>
+          <path d="M450 120 V140 H760 V156" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="610" y="134" text-anchor="middle" class="d-l">for each subscriber</text>
+          <text x="395" y="244" text-anchor="middle" class="d-l">yes → nothing happens</text>
+        </svg>
+        </div>
+        <figcaption>A mutable value (list, dict) always notifies on set. After mutating one in place yourself, call <code>.notify()</code>.</figcaption>
+      </figure>
+      <div class="duo">
+        <div>
+          <span class="code-tag">shared state</span>
+<pre class="code">count = <span class="f">State</span>(<span class="s">0</span>)         <span class="c"># shared by all windows</span>
+count.value               <span class="c"># read (subscribes in a render)</span>
+count.<span class="f">set</span>(<span class="s">5</span>)              <span class="c"># write → re-render</span>
+count.value += <span class="s">1</span>
+count.<span class="f">update</span>(<span class="k">lambda</span> n: n * <span class="s">2</span>)
+
+todos = <span class="f">State</span>([])
+todos.<span class="f">append</span>(<span class="s">"Write docs"</span>)  <span class="c"># list helpers notify</span>
+todos.value[<span class="s">0</span>][<span class="s">"done"</span>] = <span class="k">True</span>
+todos.<span class="f">notify</span>()               <span class="c"># in-place change: tell it</span></pre>
+        </div>
+        <div>
+          <span class="code-tag">local state + two-way binding</span>
+<pre class="code"><span class="f">@ui.component</span>
+<span class="k">def</span> <span class="f">Counter</span>(label):
+    n = ui.<span class="f">use_state</span>(<span class="s">0</span>)      <span class="c"># per window, per position</span>
+    <span class="k">return</span> ui.<span class="f">button</span>(<span class="s">f"{label}: {n.value}"</span>,
+                     <span class="k">lambda</span>: n.<span class="f">set</span>(n.value + <span class="s">1</span>))
+
+<span class="f">@app.page</span>(<span class="s">"/search"</span>)
+<span class="k">def</span> <span class="f">search</span>():
+    q = ui.<span class="f">use_state</span>(<span class="s">""</span>)
+    <span class="c"># a State as value = two-way binding</span>
+    <span class="k">return</span> ui.<span class="f">input</span>(q, placeholder=<span class="s">"Search…"</span>)</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- SESSION -->
+    <section id="session">
+      <div class="sec-head">
+        <div class="eyebrow">06 · Session worker <span class="face">(っ˘ω˘ς )</span></div>
+        <h2>One thread per window, one render per burst</h2>
+        <p>Each window owns a queue and a daemon thread. Messages are handled strictly in order, and the render waits until the queue drains, so ten state changes from one click still produce a single render.</p>
+      </div>
+      <figure class="paper">
+        <div class="scroll-x">
+        <svg class="diagram" viewBox="0 0 900 230" role="img" aria-label="The session loop takes an item from the queue, processes it, then renders if the session is dirty and the queue is empty or 100 milliseconds have passed; otherwise, if the ack changed, it sends only an ack.">
+          <rect x="20" y="70" width="150" height="70" rx="18" class="d-box d-sky"/>
+          <text x="95" y="100" text-anchor="middle" class="d-h">queue.get()</text>
+          <text x="95" y="122" text-anchor="middle" class="d-s">blocks until work</text>
+
+          <rect x="220" y="70" width="170" height="70" rx="18" class="d-box d-mint"/>
+          <text x="305" y="100" text-anchor="middle" class="d-h">_process(item)</text>
+          <text x="305" y="122" text-anchor="middle" class="d-s">event·nav·theme·fn·call</text>
+
+          <polygon points="525,50 625,105 525,160 425,105" class="d-box d-butter"/>
+          <text x="525" y="100" text-anchor="middle" class="d-t">dirty and</text>
+          <text x="525" y="118" text-anchor="middle" class="d-t">idle or &gt;100ms?</text>
+
+          <rect x="690" y="24" width="190" height="62" rx="18" class="d-box d-pink"/>
+          <text x="785" y="52" text-anchor="middle" class="d-h">_render()</text>
+          <text x="785" y="72" text-anchor="middle" class="d-s">tree + ack · GC hooks</text>
+
+          <rect x="690" y="124" width="190" height="62" rx="18" class="d-box d-lav"/>
+          <text x="785" y="152" text-anchor="middle" class="d-h">send ack only</text>
+          <text x="785" y="172" text-anchor="middle" class="d-s">if ack moved</text>
+
+          <line x1="170" y1="105" x2="216" y2="105" class="d-arrow" marker-end="url(#ah)"/>
+          <line x1="390" y1="105" x2="421" y2="105" class="d-arrow" marker-end="url(#ah)"/>
+          <path d="M600 92 L686 58" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="640" y="64" text-anchor="middle" class="d-l">yes</text>
+          <path d="M600 118 L686 152" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="640" y="150" text-anchor="middle" class="d-l">no</text>
+          <path d="M880 155 H892 V214 H95 V144" class="d-back" marker-end="url(#ahp)"/>
+          <path d="M880 55 H892 V160" class="d-back"/>
+          <text x="470" y="208" text-anchor="middle" class="d-pinkt">loop · exceptions become an error toast, the loop keeps going</text>
+        </svg>
+        </div>
+        <figcaption>The 100&nbsp;ms escape keeps a window responsive under a constant stream of events, such as a timer that ticks faster than renders finish.</figcaption>
+      </figure>
+    </section>
+
+    <!-- EVENTS -->
+    <section id="events">
+      <div class="sec-head">
+        <div class="eyebrow">07 · Event lifecycle <span class="face">(•̀ᴗ•́)و</span></div>
+        <h2>From a click to a fresh frame</h2>
+        <p>Follow one click on the counter button. The sequence number is what keeps typing safe: an input the user is editing is not overwritten until Python has acknowledged the user's latest keystroke.</p>
+      </div>
+      <figure class="paper">
+        <div class="scroll-x">
+        <svg class="diagram" viewBox="0 0 920 430" role="img" aria-label="Sequence: the user clicks; client.js numbers the event and sends it; the transport queues it on the session; the session invokes the handler, which sets state; when the queue is empty the session renders with the ack; client.js patches the DOM.">
+          <g class="d-t" text-anchor="middle">
+            <rect x="30" y="16" width="100" height="34" rx="14" class="d-box d-pink"/><text x="80" y="38">User</text>
+            <rect x="200" y="16" width="120" height="34" rx="14" class="d-box d-lav"/><text x="260" y="38">client.js</text>
+            <rect x="380" y="16" width="120" height="34" rx="14" class="d-box d-sky"/><text x="440" y="38">Transport</text>
+            <rect x="560" y="16" width="120" height="34" rx="14" class="d-box d-mint"/><text x="620" y="38">Session</text>
+            <rect x="740" y="16" width="150" height="34" rx="14" class="d-box d-butter"/><text x="815" y="38">Handler · State</text>
+          </g>
+          <line x1="80" y1="50" x2="80" y2="420" class="d-life"/>
+          <line x1="260" y1="50" x2="260" y2="420" class="d-life"/>
+          <line x1="440" y1="50" x2="440" y2="420" class="d-life"/>
+          <line x1="620" y1="50" x2="620" y2="420" class="d-life"/>
+          <line x1="815" y1="50" x2="815" y2="420" class="d-life"/>
+
+          <line x1="80" y1="80" x2="256" y2="80" class="d-arrow" marker-end="url(#ah)"/><text x="168" y="72" text-anchor="middle" class="d-l">click</text>
+          <text x="270" y="112" class="d-s">seq += 1 → s = 7</text>
+          <line x1="260" y1="140" x2="436" y2="140" class="d-arrow" marker-end="url(#ah)"/><text x="348" y="132" text-anchor="middle" class="d-s">{h:"r.0.1:click", s:7}</text>
+          <line x1="440" y1="170" x2="616" y2="170" class="d-arrow" marker-end="url(#ah)"/><text x="528" y="162" text-anchor="middle" class="d-s">queue.put(event)</text>
+          <line x1="620" y1="200" x2="811" y2="200" class="d-arrow" marker-end="url(#ah)"/><text x="716" y="192" text-anchor="middle" class="d-s">invoke(fn, ev)</text>
+          <path d="M811 230 H624" class="d-back" marker-end="url(#ahp)"/><text x="716" y="222" text-anchor="middle" class="d-pinkt">count.set() → dirty</text>
+          <text x="630" y="262" class="d-s">queue empty → _render()</text>
+          <line x1="620" y1="290" x2="444" y2="290" class="d-arrow" marker-end="url(#ah)"/><text x="532" y="282" text-anchor="middle" class="d-s">{render, tree, ack:7}</text>
+          <line x1="440" y1="320" x2="264" y2="320" class="d-arrow" marker-end="url(#ah)"/><text x="352" y="312" text-anchor="middle" class="d-s">__pg_recv / onmessage</text>
+          <text x="270" y="352" class="d-s">ack = 7 → patchChildren()</text>
+          <line x1="260" y1="384" x2="84" y2="384" class="d-arrow" marker-end="url(#ah)"/><text x="172" y="376" text-anchor="middle" class="d-l">sees "Clicked 1 times"</text>
+        </svg>
+        </div>
+        <figcaption>The handler id <code>r.0.1:click</code> is the element's path in the tree plus the event name. An event naming an id absent from the last render is ignored.</figcaption>
+      </figure>
+      <div class="grid">
+        <div class="card c-lav"><h3><span class="dot"></span>Arity injection</h3><p><code>invoke()</code> inspects the signature and passes the event only if the function accepts an argument. <code>lambda: …</code> and <code>def f(ev)</code> both work.</p><div class="where">state.py · _arity, invoke</div></div>
+        <div class="card c-mint"><h3><span class="dot"></span>Converted values</h3><p>Inputs hand <code>on_change</code> a <code>str</code>, a number or <code>None</code>, a <code>bool</code>, or a select's original Python value.</p><div class="where">ui.py · _bind, _coerce</div></div>
+        <div class="card c-pink"><h3><span class="dot"></span>Async &amp; background</h3><p>An <code>async def</code> handler runs on its own thread with <code>asyncio.run</code>; <code>ui.background(fn)</code> keeps the window context.</p><div class="where">state.py · _run_thread, spawn</div></div>
+        <div class="card c-butter"><h3><span class="dot"></span>Debounce &amp; keys</h3><p><code>debounce=300</code> waits for a pause in the client. <code>on_enter</code> becomes a keydown filtered to Enter.</p><div class="where">client.js · listener</div></div>
+      </div>
+    </section>
+
+    <!-- RENDER -->
+    <section id="render">
+      <div class="sec-head">
+        <div class="eyebrow">08 · Renderer &amp; hooks <span class="face">( •ᴗ• )⊃━☆</span></div>
+        <h2>Trees in, compact JSON out</h2>
+        <p>The Renderer walks the element tree, expands each component with its hook state, gives every handler a stable path id, and emits a small JSON shape. Hooks no longer reached in this render are deleted afterwards.</p>
+      </div>
+      <div class="duo">
+        <div>
+          <span class="code-tag">Python</span>
+<pre class="code"><span class="k">with</span> ui.<span class="f">card</span>(title=<span class="s">"Sign in"</span>):
+    ui.<span class="f">input</span>(email, label=<span class="s">"Email"</span>)
+    ui.<span class="f">button</span>(<span class="s">"Continue"</span>, login, full=<span class="k">True</span>)
+
+<span class="c"># identical tree, nested style (REQ-TRE-001)</span>
+ui.<span class="f">card</span>(
+    ui.<span class="f">input</span>(email, label=<span class="s">"Email"</span>),
+    ui.<span class="f">button</span>(<span class="s">"Continue"</span>, login, full=<span class="k">True</span>),
+    title=<span class="s">"Sign in"</span>,
+)</pre>
+        </div>
+        <div>
+          <span class="code-tag">wire format</span>
+<pre class="code">{
+  <span class="s">"t"</span>: <span class="s">"button"</span>,                 <span class="c">// tag</span>
+  <span class="s">"a"</span>: {<span class="s">"class"</span>: <span class="s">"pg-btn …"</span>},     <span class="c">// attributes</span>
+  <span class="s">"k"</span>: <span class="s">"save"</span>,                   <span class="c">// key (optional)</span>
+  <span class="s">"e"</span>: {<span class="s">"click"</span>: [{<span class="s">"h"</span>: <span class="s">"r.0.2:click"</span>}]},
+  <span class="s">"c"</span>: [<span class="s">"Continue"</span>]               <span class="c">// children</span>
+}                                 <span class="c">// "h": raw html instead of "c"</span>
+
+<span class="c">// hook key = (component path, call index)</span>
+(<span class="s">"r.0/Counter"</span>, <span class="s">0</span>) → State(3)</pre>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card c-pink"><h3><span class="dot"></span>Thread-local builder stack</h3><p>Every new Element adopts itself into the element on top of <code>_local.stack</code>. That one trick makes <code>with</code> blocks and nested calls equivalent.</p><div class="where">ui.py · Element._auto_attach</div></div>
+        <div class="card c-lav"><h3><span class="dot"></span>Claiming arguments</h3><p>An element passed into a component is detached from where it was built, so it never renders twice.</p><div class="where">ui.py · _claim</div></div>
+        <div class="card c-mint"><h3><span class="dot"></span>Positional hooks</h3><p>Same position, same State. Insert an unkeyed sibling before a component and its state shifts; give it a <code>key</code>.</p><div class="where">Renderer.hook · ser_children</div></div>
+        <div class="card c-butter"><h3><span class="dot"></span>Error view</h3><p>A page that raises renders its traceback in the window. Handlers that raise become an error toast.</p><div class="where">app.py · _error_view</div></div>
+      </div>
+    </section>
+
+    <!-- PATCH -->
+    <section id="patch">
+      <div class="sec-head">
+        <div class="eyebrow">09 · DOM patching <span class="face">(・ω・)ノ</span></div>
+        <h2>Reuse every node you can</h2>
+        <p>Every render ships the complete tree, and <code>client.js</code> reconciles it against the live DOM. There is no server-side diff, which keeps Python simple and the patcher at about forty lines.</p>
+      </div>
+      <figure class="paper">
+        <div class="scroll-x">
+        <svg class="diagram narrow" viewBox="0 0 760 220" role="img" aria-label="Old children A key 1, B key 2, a text node and an unkeyed div. New children B key 2, A key 1, a new keyed C. Keyed nodes are matched by key and moved; unkeyed nodes are matched in order; unmatched nodes are created or removed.">
+          <text x="20" y="40" class="d-l">old DOM</text>
+          <rect x="100" y="18" width="90" height="36" rx="12" class="d-box d-mint"/><text x="145" y="41" text-anchor="middle" class="d-s">li k=1 (A)</text>
+          <rect x="210" y="18" width="90" height="36" rx="12" class="d-box d-lav"/><text x="255" y="41" text-anchor="middle" class="d-s">li k=2 (B)</text>
+          <rect x="320" y="18" width="90" height="36" rx="12" class="d-box"/><text x="365" y="41" text-anchor="middle" class="d-s">"3 left"</text>
+          <rect x="430" y="18" width="90" height="36" rx="12" class="d-box"/><text x="475" y="41" text-anchor="middle" class="d-s">div</text>
+
+          <text x="20" y="180" class="d-l">new tree</text>
+          <rect x="100" y="158" width="90" height="36" rx="12" class="d-box d-lav"/><text x="145" y="181" text-anchor="middle" class="d-s">li k=2 (B)</text>
+          <rect x="210" y="158" width="90" height="36" rx="12" class="d-box d-mint"/><text x="255" y="181" text-anchor="middle" class="d-s">li k=1 (A)</text>
+          <rect x="320" y="158" width="90" height="36" rx="12" class="d-box"/><text x="365" y="181" text-anchor="middle" class="d-s">"2 left"</text>
+          <rect x="430" y="158" width="90" height="36" rx="12" class="d-box d-pink"/><text x="475" y="181" text-anchor="middle" class="d-s">li k=3 (C)</text>
+
+          <line x1="255" y1="54" x2="150" y2="154" class="d-arrow" marker-end="url(#ah)"/>
+          <line x1="145" y1="54" x2="250" y2="154" class="d-arrow" marker-end="url(#ah)"/>
+          <line x1="365" y1="54" x2="365" y2="154" class="d-arrow" marker-end="url(#ah)"/>
+          <text x="372" y="108" class="d-s">nodeValue</text>
+          <text x="196" y="108" text-anchor="middle" class="d-pinkt">moved by key</text>
+          <text x="475" y="108" text-anchor="middle" class="d-pinkt">div removed · C created</text>
+          <text x="560" y="96" class="d-l">match: same tag</text>
+          <text x="560" y="114" class="d-l">and same key</text>
+        </svg>
+        </div>
+        <figcaption>The div has no partner of the same tag and key, so it is removed and C is created. Keyed rows keep their DOM node (and focus, scroll, animations) when reordered.</figcaption>
+      </figure>
+      <div class="prose">
+        <p><strong>Input protection.</strong> Each input element remembers the sequence number of its last event (<code>el._pgSeq</code>). While that number is above the latest <code>ack</code>, or a debounced send is pending, <code>value</code> and <code>checked</code> are not overwritten. Fast typists never see characters disappear.</p>
+        <p><strong>Listeners are installed once.</strong> A node gets one listener per event type; the current specs live on <code>el._pgE</code> and are swapped on every patch, so handler ids can change without rebinding.</p>
+      </div>
+    </section>
+
+    <!-- TRANSPORT -->
+    <section id="transport">
+      <div class="sec-head">
+        <div class="eyebrow">10 · Transports <span class="face">✈ (｡･ω･｡)</span></div>
+        <h2>Same API, two pipes</h2>
+        <p>The client runtime detects which one it has (<code>window.webkit.messageHandlers.pygui</code>) and the app code never knows the difference.</p>
+      </div>
+      <div class="lanes">
+        <div class="lane" style="--c: var(--mint)">
+          <span class="tag">macOS · native</span>
+          <h3>NSWindow + WKWebView, no socket</h3>
+          <ol class="steps">
+            <li><span><b>ctypes</b> loads libobjc and calls <code>objc_msgSend</code> to build the window, web view, menu bar and delegate classes at runtime.</span></li>
+            <li><span>The page is written to a temp <code>index.html</code> with CSS and JS inlined; <code>app.static</code> folders are symlinked beside it.</span></li>
+            <li><span>JS → Python: <code>webkit.messageHandlers.pygui.postMessage(json)</code> reaches <code>_on_script_message</code>.</span></li>
+            <li><span>Python → JS: the worker queues a call and <code>dispatch_async_f</code> runs <code>evaluateJavaScript("__pg_recv(…)")</code> on the main thread.</span></li>
+            <li><span>Routing uses the URL hash. External links go to <code>open_url</code>, which only accepts http, https and mailto.</span></li>
+          </ol>
+        </div>
+        <div class="lane" style="--c: var(--lav)">
+          <span class="tag">Windows · Linux · browser</span>
+          <h3>Chromium app window over loopback</h3>
+          <ol class="steps">
+            <li><span><code>ThreadingHTTPServer</code> binds <code>127.0.0.1</code> on a free port; a random launch token is minted.</span></li>
+            <li><span>Edge, Chrome, Brave, Chromium or Vivaldi opens <code>/?_pgt=token</code> with <code>--app</code> and a private profile.</span></li>
+            <li><span>The token is swapped for an <code>HttpOnly</code>, <code>SameSite=Strict</code> cookie and a redirect to a clean URL.</span></li>
+            <li><span>A hand-written RFC 6455 WebSocket at <code>/_pg/ws?sid=…</code> carries the same JSON messages.</span></li>
+            <li><span>Reconnects resume the session by id. A new <code>boot</code> id after a restart makes the page reload; the app exits 3&nbsp;s after its last window leaves.</span></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- PATTERNS -->
+    <section id="patterns">
+      <div class="sec-head">
+        <div class="eyebrow">11 · Design patterns <span class="face">φ(゜▽゜*)♪</span></div>
+        <h2>The pattern catalog</h2>
+        <p>Where each classic idea shows up in the code, and what it buys the framework.</p>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Pattern</th><th>Where</th><th>What it buys</th></tr></thead>
+          <tbody>
+            <tr><td>Observer (implicit)</td><td><code>State._subs</code> WeakSet</td><td>Dependencies tracked by reading; nothing to declare, nothing leaks.</td></tr>
+            <tr><td>Actor / serial queue</td><td><code>Session._loop</code></td><td>Per-window ordering without locks in app code; any thread can post work.</td></tr>
+            <tr><td>Render coalescing</td><td><code>dirty</code> flag + empty-queue check</td><td>Many state changes, one frame (REQ-RND-002).</td></tr>
+            <tr><td>Virtual tree + reconciliation</td><td><code>Renderer</code> → <code>patchChildren</code></td><td>Declarative pages, DOM nodes reused by tag and key.</td></tr>
+            <tr><td>Composite</td><td><code>Element</code> / <code>ComponentCall</code></td><td>Elements, fragments, components and States nest freely.</td></tr>
+            <tr><td>Builder with context manager</td><td><code>__enter__</code> + <code>_local.stack</code></td><td><code>with</code> blocks that build the exact same tree as nested calls.</td></tr>
+            <tr><td>Hooks</td><td><code>use_state</code>, <code>Renderer.hook</code></td><td>Local state for plain functions, garbage-collected per render.</td></tr>
+            <tr><td>Two-way binding</td><td><code>ui._bind</code></td><td>Pass a State as <code>value</code>; reads and writes are wired for you.</td></tr>
+            <tr><td>Optimistic UI guard</td><td><code>seq</code> / <code>ack</code> in client.js</td><td>Typing never fights a render in flight.</td></tr>
+            <tr><td>Signature-based injection</td><td><code>_arity</code>, <code>_accepted_kwargs</code></td><td>Handlers and pages take only the arguments they ask for.</td></tr>
+            <tr><td>Decorator registry</td><td><code>@app.page</code>, <code>layout</code>, <code>timer</code>, <code>expose</code></td><td>The app is described by annotating functions.</td></tr>
+            <tr><td>Strategy (backends)</td><td><code>run(mode=…)</code></td><td>native, window or browser behind one App API, with automatic fallback.</td></tr>
+            <tr><td>Adapter / FFI</td><td><code>macos.msg</code>, <code>_make_class</code></td><td>Cocoa from pure Python, with no PyObjC.</td></tr>
+            <tr><td>Thread confinement</td><td><code>MacWindow.on_main</code></td><td>Cocoa calls only ever run on the main thread.</td></tr>
+            <tr><td>Supervisor process</td><td><code>reloader.run_with_reloader</code></td><td>Restart on save, survive crashes until the next fix.</td></tr>
+            <tr><td>Facade</td><td><code>App</code>, <code>ui.*</code> actions</td><td>Toasts, dialogs and navigation reach the right window(s) without plumbing.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- COMPONENTS -->
+    <section id="components">
+      <div class="sec-head">
+        <div class="eyebrow">12 · Components <span class="face">(＾▽＾)</span></div>
+        <h2>The toy box</h2>
+        <p>Every component takes <code>cls=</code>, <code>style=</code> and <code>key=</code>; any other keyword becomes an HTML attribute. Spacing uses a 4&nbsp;px scale, so <code>gap=4</code> is 16&nbsp;px.</p>
+      </div>
+      <div class="shelf paper">
+        <div class="shelf-row" style="--c: var(--mint)"><h3>Layout</h3><div class="pills"><code>column</code><code>row</code><code>grid</code><code>container</code><code>card</code><code>spacer</code><code>divider</code><code>scroll_area</code><code>shell</code><code>sidebar</code><code>nav_item</code><code>nav_section</code><code>header</code></div></div>
+        <div class="shelf-row" style="--c: var(--pink)"><h3>Text</h3><div class="pills"><code>h1–h4</code><code>text</code><code>link</code><code>code</code><code>code_block</code><code>markdown</code><code>kbd</code></div></div>
+        <div class="shelf-row" style="--c: var(--lav)"><h3>Inputs</h3><div class="pills"><code>button</code><code>icon_button</code><code>input</code><code>textarea</code><code>checkbox</code><code>switch</code><code>slider</code><code>select</code><code>radio_group</code><code>segmented</code><code>form</code></div></div>
+        <div class="shelf-row" style="--c: var(--sky)"><h3>Display</h3><div class="pills"><code>badge</code><code>avatar</code><code>icon</code><code>image</code><code>progress</code><code>spinner</code><code>alert</code><code>stat</code><code>table</code><code>tabs</code><code>accordion</code><code>modal</code><code>tooltip</code><code>empty_state</code><code>theme_toggle</code></div></div>
+        <div class="shelf-row" style="--c: var(--butter)"><h3>Charts</h3><div class="pills"><code>line_chart</code><code>bar_chart</code><code>donut</code><code>sparkline</code></div></div>
+        <div class="shelf-row" style="--c: var(--pink)"><h3>Actions</h3><div class="pills"><code>toast</code><code>navigate</code><code>set_theme</code><code>toggle_theme</code><code>set_title</code><code>copy</code><code>run_js</code><code>background</code></div></div>
+        <div class="shelf-row" style="--c: var(--mint)"><h3>Desktop</h3><div class="pills"><code>open_file</code><code>save_file</code><code>choose_folder</code><code>notify</code><code>open_url</code><code>open_path</code></div></div>
+        <div class="shelf-row" style="--c: var(--lav)"><h3>Escape hatches</h3><div class="pills"><code>ui.el</code><code>ui.html</code><code>ui.run_js</code><code>@app.expose</code><code>register_icon</code><code>app.add_css</code><code>app.static</code></div></div>
+      </div>
+      <div class="duo">
+        <div>
+          <span class="code-tag">table with formatters</span>
+<pre class="code">ui.<span class="f">table</span>(users, [
+    (<span class="s">"name"</span>, <span class="s">"Name"</span>),
+    {<span class="s">"key"</span>: <span class="s">"role"</span>, <span class="s">"label"</span>: <span class="s">"Role"</span>,
+     <span class="s">"format"</span>: <span class="k">lambda</span> v: ui.<span class="f">badge</span>(v, <span class="s">"blue"</span>)},
+    {<span class="s">"key"</span>: <span class="s">"spent"</span>, <span class="s">"align"</span>: <span class="s">"right"</span>,
+     <span class="s">"format"</span>: <span class="k">lambda</span> v, row: <span class="s">f"${v:,}"</span>},
+], on_row_click=open_user)   <span class="c"># sortable by default</span></pre>
+        </div>
+        <div>
+          <span class="code-tag">modal + chart</span>
+<pre class="code">ui.<span class="f">modal</span>(show, ui.<span class="f">text</span>(<span class="s">"Are you sure?"</span>),
+         title=<span class="s">"Confirm"</span>,
+         footer=[ui.<span class="f">button</span>(<span class="s">"Cancel"</span>, close, variant=<span class="s">"ghost"</span>),
+                 ui.<span class="f">button</span>(<span class="s">"Yes"</span>, confirm)])
+
+ui.<span class="f">line_chart</span>({<span class="s">"Sales"</span>: [<span class="s">3</span>, <span class="s">5</span>, <span class="s">4</span>, <span class="s">8</span>]},
+              [<span class="s">"Q1"</span>, <span class="s">"Q2"</span>, <span class="s">"Q3"</span>, <span class="s">"Q4"</span>])  <span class="c"># pure SVG</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- THEMING -->
+    <section id="theming">
+      <div class="sec-head">
+        <div class="eyebrow">13 · Theming <span class="face">(◕‿◕✿)</span></div>
+        <h2>One accent paints everything</h2>
+        <p>The stylesheet derives soft fills and focus rings from <code>--accent</code> with <code>color-mix()</code>. Light and dark are two token sets under <code>[data-theme]</code>; the native title bar follows along.</p>
+      </div>
+      <div class="duo">
+        <div>
+          <span class="code-tag">App(...)</span>
+<pre class="code">app = <span class="f">App</span>(
+    <span class="s">"My App"</span>,
+    theme=<span class="s">"auto"</span>,        <span class="c"># follows the OS · "dark" · "light"</span>
+    accent=<span class="s">"#f0609a"</span>,     <span class="c"># drives the whole palette</span>
+    radius=<span class="s">16</span>,            <span class="c"># → --radius</span>
+    width=<span class="s">1200</span>, height=<span class="s">800</span>, min_size=(<span class="s">600</span>, <span class="s">400</span>),
+    icon=<span class="s">"icon.png"</span>,      <span class="c"># Dock icon on macOS</span>
+)
+app.<span class="f">add_css</span>(<span class="s">".hero { background: var(--accent) }"</span>)</pre>
+        </div>
+        <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));">
+          <div class="card c-pink"><h3><span class="dot"></span>--accent</h3><p>Plus <code>--accent-soft</code> 14% and <code>--accent-ring</code> 35%.</p></div>
+          <div class="card c-lav"><h3><span class="dot"></span>Surfaces</h3><p><code>--bg</code>, <code>--surface</code>, <code>-2</code>, <code>-3</code>, <code>--border</code></p></div>
+          <div class="card c-mint"><h3><span class="dot"></span>Text</h3><p><code>--text</code>, <code>--text-2</code>, <code>--muted</code></p></div>
+          <div class="card c-butter"><h3><span class="dot"></span>Status</h3><p><code>--green</code>, <code>--red</code>, <code>--yellow</code>, <code>--blue</code></p></div>
+          <div class="card c-sky"><h3><span class="dot"></span>Charts</h3><p><code>--c1</code>…<code>--c6</code>, starting from the accent.</p></div>
+          <div class="card c-pink"><h3><span class="dot"></span>Persisted</h3><p>The user's choice is kept per app in <code>localStorage</code>.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECURITY -->
+    <section id="security">
+      <div class="sec-head">
+        <div class="eyebrow">14 · Security <span class="face">(ง •̀_•́)ง</span></div>
+        <h2>Small surface, sharp edges filed down</h2>
+        <p>A desktop app that runs a local server is a target for other local processes and web pages. These are the guards, each tied to a requirement.</p>
+      </div>
+      <div class="grid">
+        <div class="card c-pink"><h3><span class="dot"></span>Launch token</h3><p>Every page and the WebSocket need the token or its cookie. Only <code>/_pg/</code> assets are public.</p><div class="where">REQ-SEC-001 · 002</div></div>
+        <div class="card c-lav"><h3><span class="dot"></span>Loopback only</h3><p>The server binds <code>127.0.0.1</code>. The native backend opens no socket at all.</p><div class="where">REQ-FBK-003 · REQ-WIN-002</div></div>
+        <div class="card c-mint"><h3><span class="dot"></span>Path traversal</h3><p>Static serving refuses any path that resolves outside its folder.</p><div class="where">REQ-SEC-003</div></div>
+        <div class="card c-butter"><h3><span class="dot"></span>Markdown &amp; text</h3><p>Raw HTML is escaped; <code>javascript:</code>, <code>vbscript:</code> and <code>data:</code> URLs are neutralised. Text children are text nodes.</p><div class="where">REQ-SEC-004 · 005</div></div>
+        <div class="card c-sky"><h3><span class="dot"></span>Size cap</h3><p>A WebSocket message over 32&nbsp;MiB closes the connection.</p><div class="where">REQ-SEC-006</div></div>
+        <div class="card c-pink"><h3><span class="dot"></span>URL schemes</h3><p>The UI can ask Python to open http, https and mailto URLs, nothing else. Shell strings for AppleScript and PowerShell are escaped.</p><div class="where">REQ-SEC-007 · REQ-DSK-002 · 003</div></div>
+      </div>
+    </section>
+
+    <!-- DEVX -->
+    <section id="devx">
+      <div class="sec-head">
+        <div class="eyebrow">15 · Dev tools <span class="face">(⌐■_■)</span></div>
+        <h2>Comfortable while you build</h2>
+      </div>
+      <div class="grid">
+        <div class="card c-mint"><h3><span class="dot"></span>reload=True</h3><p>A parent process polls file mtimes every 0.5&nbsp;s, ignoring hidden, venv, <code>__pycache__</code> and <code>node_modules</code>, and restarts the child. A crash waits for your next save.</p></div>
+        <div class="card c-lav"><h3><span class="dot"></span>debug=True</h3><p>Turns on the WebKit inspector: right-click, Inspect Element. Or use <code>mode="browser"</code> for full dev tools.</p></div>
+        <div class="card c-pink"><h3><span class="dot"></span>pygui new</h3><p>Scaffolds <code>app.py</code> with a sidebar layout, two pages and a theme toggle; refuses to overwrite.</p></div>
+        <div class="card c-butter"><h3><span class="dot"></span>@app.expose</h3><p><code>await pygui.call("add", 2, 3)</code> from your own JS; results or errors come back as a promise.</p></div>
+        <div class="card c-sky"><h3><span class="dot"></span>@app.timer(1.0)</h3><p>Runs periodically while the app runs. Set a State inside and every open window updates.</p></div>
+        <div class="card c-mint"><h3><span class="dot"></span>Lifecycle hooks</h3><p><code>@app.on_startup</code> and <code>@app.on_shutdown</code>; closing the window makes <code>run()</code> return.</p></div>
+      </div>
+    </section>
+
+    <!-- QUALITY -->
+    <section id="quality">
+      <div class="sec-head">
+        <div class="eyebrow">16 · Specs &amp; tests <span class="face">✓(◍•ᴗ•◍)</span></div>
+        <h2>Every promise has a test</h2>
+        <p>The specification states 134 atomic <code>REQ-*</code> requirements. Tests claim them with a <code>covers:</code> line in their docstring, and <code>tests/matrix.py</code> rebuilds the traceability matrix, failing if any requirement is left uncovered.</p>
+      </div>
+      <div class="duo">
+        <div class="chart-card" style="box-shadow: 5px 5px 0 var(--mint)">
+          <div><h3>How the 134 requirements are verified</h3><div class="sub">from specs/matrix.md</div></div>
+          <div class="stack" role="img" aria-label="102 by headless automated tests, 10 by GUI tests on macOS, 22 by manual procedures">
+            <div style="flex: 102; background: var(--chart-1)" data-tip="Headless auto · 102">102</div>
+            <div style="flex: 10; background: var(--chart-2)" data-tip="GUI auto (macOS) · 10">10</div>
+            <div style="flex: 22; background: var(--chart-3)" data-tip="Manual procedure · 22">22</div>
+          </div>
+          <div class="legend">
+            <span><i style="background: var(--chart-1)"></i>Headless auto · 102</span>
+            <span><i style="background: var(--chart-2)"></i>GUI auto, macOS · 10</span>
+            <span><i style="background: var(--chart-3)"></i>Manual · 22</span>
+          </div>
+          <div id="tests-chart" style="display: grid; gap: 8px; margin-top: 6px;">
+            <div class="sub">Test functions per file · 111 total</div>
+          </div>
+        </div>
+        <div style="display: grid; gap: 14px; min-width: 0;">
+          <span class="code-tag" style="justify-self: start; margin-bottom: -14px;">run the suites</span>
+<pre class="code"><span class="c"># headless, everywhere</span>
+python3 -m unittest discover -s tests
+
+<span class="c"># + real native windows (macOS)</span>
+PYGUI_GUI_TESTS=1 python3 -m unittest discover -s tests
+
+<span class="c"># rebuild specs/matrix.md; fails on any gap</span>
+python3 tests/matrix.py</pre>
+          <div class="prose" style="font-size: .92rem;">
+            <p><strong>Ids never move.</strong> Requirements are <code>REQ-&lt;AREA&gt;-&lt;NNN&gt;</code>; a retired one keeps its id and is marked WITHDRAWN.</p>
+            <p><strong>Eighteen areas:</strong> STA, TRE, HOK, RND, EVT, RTE, CMP, THM, WIN, FBK, SEC, DSK, DEV, PRF, TSK, LOG, VAL, PKG. Manual rows live in <code>specs/manual.md</code>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PERFORMANCE -->
+    <section id="perf">
+      <div class="sec-head">
+        <div class="eyebrow">17 · Performance <span class="face">ε=ε=┌( &gt;_&lt;)┘</span></div>
+        <h2>70,000 log lines, 100,000 rows, no freeze</h2>
+        <p>A benchmark (<code>bench/bench.py</code>) measured the runtime headless before any change, then after each one. The slowest paths were not where they looked: most of the time went into bookkeeping, not into drawing.</p>
+      </div>
+      <div class="duo">
+        <div class="chart-card bars-wide" id="speed-chart" style="box-shadow: 5px 5px 0 var(--mint)">
+          <div><h3>How many times faster</h3><div class="sub">before ÷ after, same machine · hover a bar for the raw numbers</div></div>
+        </div>
+        <div class="tbl-wrap tbl-fit">
+          <table>
+            <thead><tr><th>Scenario</th><th>Before</th><th>After</th></tr></thead>
+            <tbody>
+              <tr><td>Render 5,000 table rows</td><td>3,640 ms</td><td>290 ms</td></tr>
+              <tr><td>Render a 5,000-row list</td><td>7,107 ms</td><td>463 ms</td></tr>
+              <tr><td>100,000-row table</td><td>not usable</td><td>5 ms · 12 KB</td></tr>
+              <tr><td>Scroll it to new rows</td><td>n/a</td><td>~26 ms</td></tr>
+              <tr><td>70,000 log lines to a window</td><td>no log view</td><td>239 ms · 32 messages</td></tr>
+              <tr><td>Click during slow work</td><td>504 ms</td><td>19 ms</td></tr>
+              <tr><td>Memory kept after 5k rows</td><td>24 MB</td><td>1.96 MB</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sec-head"><h3>Where the time went</h3></div>
+      <div class="grid grid-2">
+        <div class="card c-pink"><h3><span class="dot"></span>Quadratic adoption</h3><p>Moving an element into its parent rebuilt the old parent's whole child list. N rows cost N² steps. Detaching is now O(1): stale entries are skipped when the tree is read.</p><div class="where">ui.py · Element._detach</div></div>
+        <div class="card c-lav"><h3><span class="dot"></span>Garbage cycles</h3><p>Child and parent pointed at each other, so 60,000 objects per render waited for the cyclic GC. The back-link is cut once a child is serialised: plain refcounting frees the tree.</p><div class="where">app.py · Renderer._children_into</div></div>
+        <div class="card c-sky"><h3><span class="dot"></span>Render floods</h3><p>Each update from a thread queued its own redraw. Now a window keeps at most one request pending and renders at most once per frame (1/60 s).</p><div class="where">app.py · Session.invalidate, _loop</div></div>
+        <div class="card c-butter"><h3><span class="dot"></span>Small costs × 10,000</h3><p><code>inspect.signature</code> ran for every table cell, and each icon was several nodes. Signatures are now resolved per column, icons are one node with cached markup.</p><div class="where">ui.py · _Table, _icon_markup</div></div>
+      </div>
+
+      <figure class="paper">
+        <div class="scroll-x">
+        <svg class="diagram" viewBox="0 0 940 200" role="img" aria-label="A producer thread appends lines to a bounded Log. Each window has a cursor of lines already sent; one flush per window sends only the new lines in one batched message. The client keeps all lines in a buffer and creates DOM rows only for the lines in view.">
+          <rect x="8" y="8" width="540" height="184" rx="22" fill="none" stroke="var(--mint)" stroke-width="2" stroke-dasharray="4 6"/>
+          <text x="24" y="30" class="d-pinkt" style="fill:var(--mint)">PYTHON PROCESS</text>
+          <rect x="580" y="8" width="352" height="184" rx="22" fill="none" stroke="var(--lav)" stroke-width="2" stroke-dasharray="4 6"/>
+          <text x="596" y="30" class="d-pinkt" style="fill:var(--lav)">WEB ENGINE</text>
+
+          <rect x="24" y="52" width="150" height="80" rx="18" class="d-box d-mint"/>
+          <text x="99" y="80" text-anchor="middle" class="d-h">Producer</text>
+          <text x="99" y="100" text-anchor="middle" class="d-s">log.append()</text>
+          <text x="99" y="116" text-anchor="middle" class="d-s">any thread</text>
+
+          <rect x="204" y="52" width="150" height="80" rx="18" class="d-box d-butter"/>
+          <text x="279" y="80" text-anchor="middle" class="d-h">Log</text>
+          <text x="279" y="100" text-anchor="middle" class="d-s">ring buffer</text>
+          <text x="279" y="116" text-anchor="middle" class="d-s">max_lines</text>
+
+          <rect x="384" y="52" width="150" height="80" rx="18" class="d-box d-sky"/>
+          <text x="459" y="80" text-anchor="middle" class="d-h">Cursor</text>
+          <text x="459" y="100" text-anchor="middle" class="d-s">per window:</text>
+          <text x="459" y="116" text-anchor="middle" class="d-s">lines sent so far</text>
+
+          <rect x="596" y="52" width="150" height="80" rx="18" class="d-box d-lav"/>
+          <text x="671" y="80" text-anchor="middle" class="d-h">Client buffer</text>
+          <text x="671" y="100" text-anchor="middle" class="d-s">70,000 strings</text>
+          <text x="671" y="116" text-anchor="middle" class="d-s">outside the DOM</text>
+
+          <rect x="776" y="52" width="140" height="80" rx="18" class="d-box d-pink"/>
+          <text x="846" y="80" text-anchor="middle" class="d-h">DOM</text>
+          <text x="846" y="100" text-anchor="middle" class="d-s">~47 rows</text>
+          <text x="846" y="116" text-anchor="middle" class="d-s">in view + margin</text>
+
+          <line x1="174" y1="92" x2="200" y2="92" class="d-arrow" marker-end="url(#ah)"/>
+          <line x1="354" y1="92" x2="380" y2="92" class="d-arrow" marker-end="url(#ah)"/>
+          <line x1="534" y1="92" x2="592" y2="92" class="d-arrow" marker-end="url(#ah)"/>
+          <line x1="746" y1="92" x2="772" y2="92" class="d-arrow" marker-end="url(#ah)"/>
+
+          <text x="99" y="166" text-anchor="middle" class="d-pinkt">~300,000 lines/s</text>
+          <text x="279" y="166" text-anchor="middle" class="d-pinkt">oldest dropped</text>
+          <text x="459" y="166" text-anchor="middle" class="d-pinkt">one flush queued</text>
+          <text x="459" y="182" text-anchor="middle" class="d-pinkt">per window</text>
+          <text x="671" y="166" text-anchor="middle" class="d-pinkt">trimmed in 10% steps</text>
+          <text x="846" y="166" text-anchor="middle" class="d-pinkt">redrawn per frame</text>
+        </svg>
+        </div>
+        <figcaption>A page re-sends its whole tree; a Log sends each window only the lines it has not seen yet. While a flush is pending, new lines ride along with it, so a fast producer naturally gets bigger batches instead of more messages. Measured in Chrome: 70,000 lines buffered, 47 DOM rows.</figcaption>
+      </figure>
+
+      <div class="duo">
+        <div class="tbl-wrap tbl-fit" style="box-shadow: 4px 4px 0 var(--lav)">
+          <table>
+            <thead><tr><th>Heavy work</th><th>How</th><th>Runs on</th></tr></thead>
+            <tbody>
+              <tr><td>Files, network, DB</td><td><code>ui.task(fn)</code></td><td>thread pool, min(32, cpu + 4)</td></tr>
+              <tr><td><code>async def</code></td><td><code>ui.task(coro_fn)</code></td><td>one shared asyncio loop</td></tr>
+              <tr><td>CPU-heavy</td><td><code>process=True</code></td><td>process pool, one per core</td></tr>
+              <tr><td>External programs</td><td><code>ui.run_command</code></td><td>a reader thread each</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <span class="code-tag">progress + cancel</span>
+<pre class="code"><span class="k">def</span> <span class="f">copy_all</span>(files, dst, task):
+    <span class="k">for</span> i, f <span class="k">in</span> <span class="f">enumerate</span>(files):
+        task.<span class="f">check</span>()          <span class="c"># stops on cancel</span>
+        shutil.<span class="f">copy2</span>(f, dst)
+        task.<span class="f">report</span>((i + <span class="s">1</span>) / <span class="f">len</span>(files), f.name)
+
+job = ui.<span class="f">task</span>(copy_all, files, dst,
+              on_done=<span class="k">lambda</span> n: ui.<span class="f">toast</span>(<span class="s">"Done"</span>))
+ui.<span class="f">button</span>(<span class="s">"Cancel"</span>, job.cancel)</pre>
+        </div>
+      </div>
+
+      <div class="grid grid-4">
+        <div class="card c-mint"><h3><span class="dot"></span>Virtual tables</h3><p>Above 1,000 rows, <code>ui.table</code> renders only the rows in view plus one screen of margin. 100,000 rows: 19 DOM rows.</p><div class="where">ui.table · ui.virtual_list</div></div>
+        <div class="card c-pink"><h3><span class="dot"></span>Deferred claiming</h3><p>Elements passed into a component are looked for only if still in place at serialisation, so a 100k-row data argument isn't walked on every render.</p><div class="where">ComponentCall · Renderer._claimed</div></div>
+        <div class="card c-lav"><h3><span class="dot"></span>Slow-handler warning</h3><p>A handler that blocks its window for more than 250 ms prints where it lives and suggests <code>ui.task</code>, once.</p><div class="where">app.py · _warn_if_slow</div></div>
+        <div class="card c-sky"><h3><span class="dot"></span>Throttled scroll</h3><p>Scroll events reach Python at most every 40 ms, always including the last position.</p><div class="where">client.js · listener</div></div>
+      </div>
+    </section>
+
+    <!-- ROADMAP -->
+    <section id="roadmap">
+      <div class="sec-head">
+        <div class="eyebrow">18 · Known gaps <span class="face">(´・ω・`)</span></div>
+        <h2>What it doesn't do yet</h2>
+        <p>Stated in the spec rather than hidden. Each one is a candidate requirement.</p>
+      </div>
+      <div class="gaps">
+        <div class="gap"><b>Native Windows &amp; Linux</b><p>WebView2 and WebKitGTK through ctypes would drop the browser and the socket.</p></div>
+        <div class="gap"><b>Untested on those systems</b><p>Browser discovery, PowerShell dialogs and zenity/kdialog have only been verified on macOS so far.</p></div>
+        <div class="gap"><b>One window on macOS</b><p>A single native window and session; no API for a second window.</p></div>
+        <div class="gap"><b>No packaging</b><p>No signed .app or .exe yet; PyInstaller works since there is nothing to collect.</p></div>
+        <div class="gap"><b>Out-of-process dialogs</b><p>File dialogs are not sheets and can open behind the window.</p></div>
+        <div class="gap"><b>Positional hooks</b><p>An unkeyed sibling inserted before a component shifts its state, with no warning.</p></div>
+        <div class="gap"><b>Accessibility</b><p>Some ARIA roles exist; keyboard and screen-reader behaviour are unreviewed.</p></div>
+        <div class="gap"><b>Python versions</b><p>Only 3.9 has a recorded run; 3.10 to 3.13 are expected to work.</p></div>
+        <div class="gap"><b>Whole-tree renders</b><p>Linear and capped at 60 per second, but there is no diff on the Python side. Big data belongs in virtual tables or a Log.</p></div>
+        <div class="gap"><b>Fixed-height virtual rows</b><p>Rows of varying height can't be virtualized; cells in a virtual table don't wrap.</p></div>
+        <div class="gap"><b>Process tasks can't be stopped mid-run</b><p><code>cancel()</code> only prevents a process-pool task from starting.</p></div>
+      </div>
+    </section>
+
+    <footer>
+      <svg viewBox="0 0 40 40" width="36" height="36" aria-hidden="true"><rect x="5" y="6" width="30" height="27" rx="13" fill="var(--mint)" stroke="var(--edge)" stroke-width="2.5"/><circle cx="15" cy="18" r="2.6" fill="var(--edge)"/><circle cx="25" cy="18" r="2.6" fill="var(--edge)"/><ellipse cx="11.5" cy="23" rx="3" ry="2" fill="var(--pink)" opacity=".7"/><ellipse cx="28.5" cy="23" rx="3" ry="2" fill="var(--pink)" opacity=".7"/></svg>
+      <span>PyGUI 0.1.0 · MIT · © 2026 <a href="https://github.com/rzafiamy" target="_blank" rel="noopener">rzafiamy</a> · icons adapted from Lucide (ISC) and Feather (MIT)</span>
+      <span><a href="https://github.com/rzafiamy/pygui" target="_blank" rel="noopener">Source on GitHub</a> · <a href="https://pypi.org/project/pygui-desktop/" target="_blank" rel="noopener">pygui-desktop on PyPI</a> · <a href="https://github.com/rzafiamy/pygui/issues" target="_blank" rel="noopener">Report an issue</a></span>
+      <span>またね! · see you in the next window</span>
+    </footer>
+  </main>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(() => {
+  const loc = [["ui.py",1445],["app.py",775],["style.css",473],["macos.py",358],["client.js",331],["server.py",225],["state.py",193],["desktop.py",149],["window.py",83],["reloader.py",67],["__main__.py",61],["__init__.py",23]];
+  const tests = [["test_runtime",24],["test_tree",23],["test_platform",15],["test_performance",10],["test_native",9],["test_tasks",9],["test_forms",9],["test_state",7],["test_log",5]];
+  function bars(host, data, color, unit, fmt) {
+    const max = Math.max(...data.map(d => d[1]));
+    for (const [name, v, tip] of data) {
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      row.dataset.tip = tip || `${name} · ${v} ${unit}`;
+      row.innerHTML = `<span class="n"></span><div class="track"><div class="fill"></div></div><span class="v">${fmt ? fmt(v) : v}</span>`;
+      row.querySelector(".n").textContent = name;
+      const f = row.querySelector(".fill");
+      f.style.width = (v / max * 100) + "%";
+      if (color) f.style.background = color;
+      host.appendChild(row);
+    }
+  }
+  bars(document.getElementById("loc-chart"), loc, null, "lines");
+  bars(document.getElementById("tests-chart"), tests, "var(--chart-1)", "tests");
+  const speedups = [
+    ["Click during slow work", 26.5, "504 ms → 19 ms"],
+    ["Render 5k-row list", 15.4, "7,107 ms → 463 ms"],
+    ["Render 5k-row table", 12.6, "3,640 ms → 290 ms"],
+    ["Memory kept (5k rows)", 12.2, "24 MB → 1.96 MB"],
+    ["50k updates from a thread", 2.7, "581 ms, 48 renders → 215 ms, 8 renders"],
+  ];
+  bars(document.getElementById("speed-chart"), speedups, "var(--mint)", "", (v) => v + "×");
+
+  const copyBtn = document.getElementById("copy-pip");
+  copyBtn.addEventListener("click", () => {
+    const text = document.getElementById("pip-cmd").textContent;
+    const done = () => { copyBtn.textContent = "Copied"; setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500); };
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(document.getElementById("pip-cmd"));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); copyBtn.textContent = "Selected, press ⌘C"; };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  });
+
+  const tip = document.getElementById("tip");
+  document.addEventListener("pointermove", (e) => {
+    const t = e.target.closest && e.target.closest("[data-tip]");
+    if (!t) { tip.hidden = true; return; }
+    tip.textContent = t.dataset.tip;
+    tip.style.left = e.clientX + "px";
+    tip.style.top = e.clientY + "px";
+    tip.hidden = false;
+  });
+  document.addEventListener("pointerleave", () => { tip.hidden = true; });
+
+  const links = [...document.querySelectorAll(".toc a")];
+  const map = new Map(links.map(a => [a.getAttribute("href").slice(1), a]));
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entries) => {
+      for (const en of entries) if (en.isIntersecting) {
+        links.forEach(a => a.classList.remove("on"));
+        const a = map.get(en.target.id); if (a) a.classList.add("on");
+      }
+    }, { rootMargin: "-30% 0px -60% 0px" });
+    document.querySelectorAll("main section[id]").forEach(s => io.observe(s));
+  }
+})();
+</script>
+
+</body></html>

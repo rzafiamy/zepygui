@@ -11,6 +11,7 @@
   const PROPS = { value: 1, checked: 1 };
   const calls = new Map();
   const debounced = new Map();
+  const throttled = new Map();
   let ws = null, seq = 0, ack = 0, retries = 0, boot = null, statusTimer = null, callId = 0, rendered = false;
 
   // ------------------------------------------------------------------ transport
@@ -75,6 +76,15 @@
       m.ok ? p.resolve(m.value) : p.reject(new Error(m.error));
     },
     close() { window.close(); },
+    log(m) {
+      const b = logBuf(m.id);
+      if (m.reset || m.gen !== b.gen) { b.gen = m.gen; b.start = m.start; b.lines = m.lines; b.version++; }
+      else { const L = b.lines, add = m.lines; for (let i = 0; i < add.length; i++) L.push(add[i]); }
+      b.max = m.max || b.max;
+      // trim in batches (10% slack) so a full console doesn't shift its array on every message
+      if (b.lines.length > b.max * 1.1) { const cut = b.lines.length - b.max; b.lines.splice(0, cut); b.start += cut; b.version++; }
+      for (const el of b.views) scheduleLog(el);
+    },
   };
   function handle(m) { const f = handlers[m.type]; if (f) f(m); }
   window.__pg_recv = handle;
@@ -110,6 +120,7 @@
       if (el.type === "checkbox" || el.type === "radio") d.checked = el.checked;
     }
     if ("key" in e) { d.key = e.key; d.ctrl = e.ctrlKey; d.shift = e.shiftKey; d.alt = e.altKey; d.meta = e.metaKey; }
+    if (e.type === "scroll") { d.scrollTop = Math.round(el.scrollTop); d.scrollLeft = Math.round(el.scrollLeft); }
     return d;
   }
 
@@ -135,6 +146,16 @@
       if (spec.prevent) e.preventDefault();
       if (spec.stop) e.stopPropagation();
       const data = extract(e, el);
+      if (spec.throttle) {
+        // first event goes out at once; later ones at most every `throttle` ms, last one always
+        const t = throttled.get(spec.h) || { last: 0, timer: null, data: null };
+        throttled.set(spec.h, t);
+        t.data = data;
+        const wait = t.last + spec.throttle - performance.now();
+        if (wait <= 0 && !t.timer) { t.last = performance.now(); emit(spec, data, el, false); }
+        else if (!t.timer) t.timer = setTimeout(() => { t.timer = null; t.last = performance.now(); emit(spec, t.data, el, false); }, Math.max(wait, 0));
+        continue;
+      }
       if (spec.debounce) {
         const prev = debounced.get(spec.h);
         if (prev) clearTimeout(prev.timer);
@@ -234,6 +255,11 @@
       if (!el._pgL) el._pgL = new Set();
       for (const type in v.e) if (!el._pgL.has(type)) { el._pgL.add(type); el.addEventListener(type, listener); }
     }
+    if (a["data-pg-log"] != null) {
+      mountLog(el, a);  // the console draws its own children from its line buffer
+      return;
+    }
+    if (el._log) unmountLog(el);  // this node was a console and is now reused for something else
     if (v.h != null) {
       if (el._pgH !== v.h) { el.innerHTML = v.h; el._pgH = v.h; }
     } else {
@@ -283,6 +309,102 @@
     for (let i = 0; i < next.length; i++) {
       const cur = parent.childNodes[i];
       if (cur !== next[i]) parent.insertBefore(next[i], cur || null);
+    }
+  }
+
+  // ------------------------------------------------------------------ log console
+  // Lines live in a buffer per Log id (outside the DOM, so a view can be re-created without a
+  // resend). A view only creates elements for the lines in its viewport.
+  const logs = new Map();
+  const LOG_OVERSCAN = 20;
+  const LEVEL = [[/\b(ERROR|FATAL|CRITICAL)\b|Traceback|Exception\b/, "pg-log-err"], [/\bWARN(ING)?\b/, "pg-log-warn"], [/\bDEBUG\b/, "pg-log-dim"]];
+
+  function logBuf(id) {
+    let b = logs.get(id);
+    if (!b) { b = { gen: -1, start: 0, lines: [], max: 100000, version: 0, views: new Set() }; logs.set(id, b); }
+    return b;
+  }
+
+  function mountLog(el, a) {
+    if (!el._log) {
+      const L = el._log = { id: null, follow: true, lh: 0, raf: 0 };
+      el.innerHTML = '<div class="pg-log-spacer"></div><div class="pg-log-rows"></div>';
+      L.onScroll = () => {
+        if (!L.programmatic) L.follow = el.scrollTop + el.clientHeight >= el.scrollHeight - (L.lh || 18) * 1.5;
+        L.programmatic = false;
+        scheduleLog(el);
+      };
+      el.addEventListener("scroll", L.onScroll, { passive: true });
+    }
+    const L = el._log;
+    if (L.id !== a["data-pg-log"]) {
+      if (L.id) logBuf(L.id).views.delete(el);
+      L.id = a["data-pg-log"];
+      logBuf(L.id).views.add(el);
+      L.idx = null;
+    }
+    L.filter = String(a["data-filter"] || "").toLowerCase();
+    L.followOn = a["data-follow"] !== "false";
+    scheduleLog(el);
+  }
+
+  function unmountLog(el) {
+    const L = el._log;
+    if (L.raf) cancelAnimationFrame(L.raf);
+    if (L.id) logBuf(L.id).views.delete(el);
+    el.removeEventListener("scroll", L.onScroll);
+    el._log = null;
+    el.innerHTML = "";
+  }
+
+  function scheduleLog(el) {
+    const L = el._log;
+    if (L && !L.raf) L.raf = requestAnimationFrame(() => { L.raf = 0; drawLog(el); });
+  }
+
+  function drawLog(el) {
+    const L = el._log, b = logBuf(L.id);
+    if (!el.isConnected) { b.views.delete(el); return; }
+    const spacer = el.firstChild, rows = el.lastChild;
+    if (!L.lh) {
+      const probe = document.createElement("div");
+      probe.textContent = "M";
+      rows.appendChild(probe);
+      L.lh = probe.getBoundingClientRect().height || 18;
+      probe.remove();
+    }
+    let n = b.lines.length, pick = null;
+    if (L.filter) {
+      // the matching-line index grows incrementally; rebuilt only when the filter or buffer resets
+      if (!L.idx || L.idxFilter !== L.filter || L.idxVersion !== b.version) {
+        L.idx = []; L.scanned = 0; L.idxFilter = L.filter; L.idxVersion = b.version;
+      }
+      for (let i = L.scanned; i < b.lines.length; i++) if (b.lines[i].toLowerCase().includes(L.filter)) L.idx.push(i);
+      L.scanned = b.lines.length;
+      n = L.idx.length; pick = L.idx;
+    }
+    spacer.style.height = n * L.lh + "px";
+    if (L.followOn && L.follow) {
+      const bottom = Math.max(0, n * L.lh - el.clientHeight);
+      if (Math.abs(el.scrollTop - bottom) > 1) { L.programmatic = true; el.scrollTop = bottom; }
+    }
+    const first = Math.max(0, Math.floor(el.scrollTop / L.lh) - LOG_OVERSCAN);
+    const last = Math.min(n, Math.ceil((el.scrollTop + el.clientHeight) / L.lh) + LOG_OVERSCAN);
+    rows.style.transform = `translateY(${first * L.lh}px)`;
+    const need = Math.max(0, last - first);
+    while (rows.childElementCount < need) rows.appendChild(document.createElement("div"));
+    while (rows.childElementCount > need) rows.lastChild.remove();
+    for (let i = 0; i < need; i++) {
+      const at = pick ? pick[first + i] : first + i;
+      const text = b.lines[at], row = rows.children[i];
+      if (row.textContent !== text) {
+        row.textContent = text;
+        let cls = "";
+        for (const [re, c] of LEVEL) if (re.test(text)) { cls = c; break; }
+        row.className = cls;
+      }
+      const num = String(b.start + at + 1);
+      if (row.dataset.n !== num) row.dataset.n = num;
     }
   }
 

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,12 +8,33 @@ version = "0.1.0"
 description = "Beautiful native desktop apps in pure Python, with no dependencies."
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
-authors = [{ name = "Rija Z." }]
+license = "MIT"
+# the icon artwork in pygui/ui.py is adapted from Lucide (ISC) and Feather (MIT): their notices ship too
+license-files = ["LICENSE", "CREDITS.md", "licences/*.txt"]
+authors = [{ name = "rzafiamy" }]
+keywords = ["gui", "desktop", "webview", "native", "ui", "tauri", "reactive"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: MacOS X :: Cocoa",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: User Interfaces",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/rzafiamy/pygui"
+Repository = "https://github.com/rzafiamy/pygui"
+Issues = "https://github.com/rzafiamy/pygui/issues"
+
 [tool.setuptools]
-packages = ["pygui"]
+packages = ["pygui", "pygui.static"]  # static/ holds the client runtime and stylesheet (data only)
 
 [tool.setuptools.package-data]
-pygui = ["static/*"]
+"pygui.static" = ["*.js", "*.css"]

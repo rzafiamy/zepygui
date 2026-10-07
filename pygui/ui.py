@@ -19,11 +19,12 @@ import math
 import re
 import textwrap
 
+from .forms import Field, Form
 from .state import State, _local, _targets, current_session, spawn
 
 __all__ = [
     # core
-    "Element", "component", "use_state", "el", "div", "span", "fragment", "html", "session",
+    "Element", "component", "use_state", "use_form", "use_field", "el", "div", "span", "fragment", "html", "session",
     # layout
     "column", "row", "grid", "container", "spacer", "divider", "card", "scroll_area",
     "shell", "sidebar", "nav_item", "nav_section", "header",
@@ -37,8 +38,12 @@ __all__ = [
     "table", "tabs", "accordion", "modal", "tooltip", "empty_state", "theme_toggle",
     # charts
     "line_chart", "bar_chart", "donut", "sparkline",
+    # large data
+    "virtual_list", "log_view",
     # actions
     "toast", "navigate", "run_js", "set_title", "set_theme", "toggle_theme", "copy", "background",
+    # background work
+    "task", "run_command",
 ]
 
 
@@ -105,15 +110,20 @@ class Element:
             stack[-1]._adopt(self)
 
     def _detach(self):
-        parent = self._parent
-        if parent is not None:
-            parent.children = [c for c in parent.children if c is not self]
-            self._parent = None
+        # O(1): the old parent keeps a stale entry, which readers skip because its _parent
+        # no longer points back (see live_children). Rebuilding the list here made every
+        # adoption O(siblings) and building N rows O(N²).
+        self._parent = None
 
     def _adopt(self, child):
-        child._detach()
+        if child._parent is self:  # re-adding an existing child moves it to the end
+            self.children.remove(child)
         child._parent = self
         self.children.append(child)
+
+    def live_children(self):
+        """Children that still belong to this element (moved elements are skipped)."""
+        return [c for c in self.children if not isinstance(c, Element) or c._parent is self]
 
     # -- building ------------------------------------------------------------
     def add(self, *children):
@@ -152,19 +162,20 @@ class Element:
             self.attrs[_attr(name)] = value
         return self
 
-    def on(self, event, handler, *, keys=None, prevent=False, stop=False, debounce=None,
+    def on(self, event, handler, *, keys=None, prevent=False, stop=False, debounce=None, throttle=None,
            self_only=False, transform=None):
         """Attach an event handler. ``event`` is a DOM event name (click, input, keydown...).
 
         Shortcuts: ``"enter"`` and ``"escape"`` listen to keydown for that key only.
         ``debounce`` (milliseconds) waits for the user to pause before sending.
+        ``throttle`` (milliseconds) sends at most one event per interval, always including the last.
         """
         dom = event
         if event in ("enter", "escape"):
             dom, keys = "keydown", [event.capitalize()]
         self.events[event] = (handler, {
             "dom": dom, "keys": list(keys) if keys else None, "prevent": prevent, "stop": stop,
-            "debounce": debounce, "self": self_only, "transform": transform,
+            "debounce": debounce, "throttle": throttle, "self": self_only, "transform": transform,
         })
         return self
 
@@ -190,14 +201,46 @@ class Element:
 
 def _claim(value):
     """Detach elements passed as arguments so they don't also render where they were created."""
+    t = type(value)
+    if t in _SCALARS:
+        return
     if isinstance(value, Element):
         value._detach()
     elif isinstance(value, (list, tuple)):
         for v in value:
-            _claim(v)
+            if type(v) not in _SCALARS:
+                _claim(v)
     elif isinstance(value, dict):
         for v in value.values():
-            _claim(v)
+            if type(v) not in _SCALARS:
+                _claim(v)
+
+
+_SCALARS = frozenset((str, int, float, bool, type(None), bytes))
+
+
+def _find(value, wanted, found):
+    """Move the ids of ``wanted`` elements reachable from ``value`` into ``found``.
+
+    Returns True once nothing is left to look for, so a search over a large data
+    argument stops as soon as every candidate has been seen."""
+    t = type(value)
+    if t in _SCALARS:
+        return False
+    if isinstance(value, Element):
+        if id(value) in wanted:
+            wanted.discard(id(value))
+            found.add(id(value))
+            return not wanted
+        return False
+    if isinstance(value, dict):
+        value = value.values()
+    elif not isinstance(value, (list, tuple)):
+        return False
+    for v in value:
+        if type(v) not in _SCALARS and _find(v, wanted, found):
+            return True
+    return False
 
 
 class ComponentCall(Element):
@@ -208,8 +251,18 @@ class ComponentCall(Element):
     def __init__(self, fn, args, kwargs, key=None):
         self._setup(None, key)
         self.fn, self.args, self.kwargs = fn, args, kwargs
-        _claim(args)
-        _claim(kwargs)
+        renderer = getattr(_local, "renderer", None)
+        stack = getattr(_local, "stack", None)
+        if renderer is not None and stack:
+            # Defer: elements passed as arguments are only looked for if they are still in
+            # place when their parent is serialised (usually they have been moved into the
+            # layout by then). Walking the arguments now would cost O(data) per render for
+            # every table or list component.
+            top = stack[-1]
+            renderer.claims.setdefault(id(top), []).append((self, len(top.children)))
+        else:
+            _claim(args)
+            _claim(kwargs)
         self._auto_attach()
 
 
@@ -238,6 +291,24 @@ def use_state(default=None):
     if renderer is None:
         raise RuntimeError("use_state() must be called while rendering a page or a @component")
     return renderer.hook(default)
+
+
+def use_form(fields=None, **kw):
+    """A :class:`~pygui.forms.Form` local to this page or component (kept across renders).
+
+        form = ui.use_form(email=("", [rules.required(), rules.email()]), remember=False)
+        ui.input(form.email, label="Email")
+    """
+    return use_state(lambda: Form(fields, **kw)).value
+
+
+def use_field(default=None, *rules):
+    """A single validated :class:`~pygui.forms.Field` local to this page or component.
+
+        name = ui.use_field("", rules.required(), rules.max_length(40))
+        ui.input(name, label="Name")
+    """
+    return use_state(lambda: Field(default, rules)).value
 
 
 def session():
@@ -460,6 +531,21 @@ ICONS = {
 def register_icon(name, *paths):
     """Add your own icon from SVG path ``d`` strings drawn on a 24x24 grid."""
     ICONS[name] = list(paths)
+    _ICON_MARKUP.pop(name, None)
+
+
+_ICON_MARKUP = {}
+
+
+def _icon_markup(name, paths):
+    """The icon's <path> elements as one trusted markup string, built once per icon.
+
+    Sending this as the svg's inner HTML makes an icon one node on the wire and in the
+    DOM patcher, instead of one node per path."""
+    markup = _ICON_MARKUP.get(name)
+    if markup is None:
+        markup = _ICON_MARKUP[name] = "".join(f'<path d="{_html.escape(d)}"/>' for d in paths)
+    return markup
 
 
 def _icon(name, size=18, color=None, stroke=2, cls=None, **kw):
@@ -468,10 +554,16 @@ def _icon(name, size=18, color=None, stroke=2, cls=None, **kw):
     paths = ICONS.get(name)
     if paths is None:
         return span(name, cls=_c("pg-icon-text", cls))
-    style = {"color": color} if color else None
-    return Element("svg", *[Element("path", d=d) for d in paths], cls=_c("pg-icon", cls), style=style,
-                   width=size, height=size, viewBox="0 0 24 24", fill="none", stroke="currentColor",
-                   stroke_width=stroke, stroke_linecap="round", stroke_linejoin="round", **kw)
+    style = {}
+    if color:
+        style["color"] = color
+    if stroke != 2:  # inline: the .pg-icon CSS rule would beat a presentation attribute
+        style["stroke-width"] = stroke
+    # fill, stroke colour, caps and joins come from the .pg-icon rule in style.css
+    svg = Element("svg", cls=_c("pg-icon", cls), style=style or None, width=size, height=size,
+                  viewBox="0 0 24 24", **kw)
+    svg.html = _icon_markup(name, paths)
+    return svg
 
 
 def icon(name, size=18, color=None, stroke=2, **kw):
@@ -770,9 +862,24 @@ def icon_button(name, on_click=None, *, variant="ghost", size="md", tooltip=None
     return b
 
 
-def _field(control, label, hint, error, key, cls, style):
+def _unfield(value, error, on_change):
+    """Unwrap a validation Field passed as ``value``: returns (State, error, on_change, on_blur, required)."""
+    if not isinstance(value, Field):
+        return value, error, on_change, None, False
+    f = value
+
+    def changed(v):
+        f._changed()
+        if on_change is not None:
+            from .state import invoke
+            invoke(on_change, v)
+
+    return f.state, (error if error is not None else f.visible_error), changed, f.touch, f.required
+
+
+def _field(control, label, hint, error, key, cls, style, required=False):
     return Element("label",
-                   Element("span", label, cls="pg-label") if label else None,
+                   Element("span", label, cls=_c("pg-label", "pg-required" if required else None)) if label else None,
                    control,
                    Element("span", error, cls="pg-error-text") if error else
                    (Element("span", hint, cls="pg-hint") if hint else None),
@@ -787,6 +894,7 @@ def input(value=None, *, placeholder=None, label=None, type="text", on_change=No
     ``on_change(value)`` fires as the user types; ``on_enter(value)`` when Enter is pressed.
     """
     numeric = type == "number"
+    value, error, on_change, on_blur, required = _unfield(value, error, on_change)
 
     def parse(ev):
         v = ev.value if ev.value is not None else ""
@@ -802,10 +910,14 @@ def input(value=None, *, placeholder=None, label=None, type="text", on_change=No
     attrs = dict(kw)
     if handle is not None or value is not None:
         attrs["value"] = "" if current is None else current
+    if error:
+        attrs["aria-invalid"] = "true"
     inp = Element("input", cls="pg-input", type=type, placeholder=placeholder, disabled=disabled,
-                  autofocus=autofocus, **attrs)
+                  autofocus=autofocus, aria_required="true" if required else None, **attrs)
     if handle is not None:
         inp.on("input", handle, transform=parse, debounce=debounce)
+    if on_blur is not None:
+        inp.on("blur", on_blur)
     if on_enter is not None:
         inp.on("enter", on_enter, transform=parse)
     clear = None
@@ -814,12 +926,13 @@ def input(value=None, *, placeholder=None, label=None, type="text", on_change=No
                         on_click=lambda: handle("" if not numeric else None))
     wrap = Element("div", _icon(icon, 16, cls="pg-input-icon") if icon else None, inp, clear,
                    cls=_c("pg-input-wrap", "pg-invalid" if error else None, "pg-disabled" if disabled else None))
-    return _field(wrap, label, hint, error, key, cls, style)
+    return _field(wrap, label, hint, error, key, cls, style, required)
 
 
 def textarea(value=None, *, placeholder=None, label=None, rows=4, on_change=None, hint=None, error=None,
              disabled=False, debounce=None, autofocus=False, key=None, cls=None, style=None, **kw):
-    """Multi-line text input (two-way binds a ``State`` like :func:`input`)."""
+    """Multi-line text input (two-way binds a ``State`` or ``Field`` like :func:`input`)."""
+    value, error, on_change, on_blur, required = _unfield(value, error, on_change)
     current, handle = _bind(value, on_change)
     attrs = dict(kw)
     if handle is not None or value is not None:
@@ -828,11 +941,20 @@ def textarea(value=None, *, placeholder=None, label=None, rows=4, on_change=None
                  autofocus=autofocus, **attrs)
     if handle is not None:
         ta.on("input", handle, transform=lambda ev: ev.value or "", debounce=debounce)
+    if on_blur is not None:
+        ta.on("blur", on_blur)
     wrap = Element("div", ta, cls=_c("pg-input-wrap pg-textarea-wrap", "pg-invalid" if error else None))
-    return _field(wrap, label, hint, error, key, cls, style)
+    return _field(wrap, label, hint, error, key, cls, style, required)
 
 
-def _toggle(kind, label, value, on_change, disabled, description, key, cls, style, kw):
+def _toggle(kind, label, value, on_change, disabled, description, key, cls, style, kw, error=None):
+    value, error, on_change, on_blur, _ = _unfield(value, error, on_change)
+    if on_blur is not None:
+        user_change = on_change
+
+        def on_change(v, _u=user_change):
+            on_blur()
+            _u(v)
     current, handle = _bind(value, on_change)
     inp = Element("input", type="checkbox", checked=bool(current), disabled=disabled, **kw)
     if handle is not None:
@@ -842,24 +964,25 @@ def _toggle(kind, label, value, on_change, disabled, description, key, cls, styl
     else:
         visual = Element("span", _icon("check", 13, stroke=3), cls="pg-check-box")
     caption = None
-    if label is not None or description is not None:
+    if label is not None or description is not None or error:
         caption = Element("span", Element("span", label, cls="pg-toggle-label") if label is not None else None,
-                          Element("span", description, cls="pg-hint") if description else None,
+                          Element("span", error, cls="pg-error-text") if error else
+                          (Element("span", description, cls="pg-hint") if description else None),
                           cls="pg-toggle-text")
     return Element("label", inp, visual, caption,
                    cls=_c(f"pg-{kind}", "pg-disabled" if disabled else None, cls), style=style, key=key)
 
 
-def checkbox(label=None, value=False, *, on_change=None, disabled=False, description=None, key=None,
+def checkbox(label=None, value=False, *, on_change=None, disabled=False, description=None, error=None, key=None,
              cls=None, style=None, **kw):
-    """Checkbox. ``value`` may be a ``State`` (bool) for two-way binding."""
-    return _toggle("check", label, value, on_change, disabled, description, key, cls, style, kw)
+    """Checkbox. ``value`` may be a ``State`` (bool) or a ``Field`` for two-way binding."""
+    return _toggle("check", label, value, on_change, disabled, description, key, cls, style, kw, error)
 
 
-def switch(label=None, value=False, *, on_change=None, disabled=False, description=None, key=None,
+def switch(label=None, value=False, *, on_change=None, disabled=False, description=None, error=None, key=None,
            cls=None, style=None, **kw):
     """iOS-style toggle switch."""
-    return _toggle("switch", label, value, on_change, disabled, description, key, cls, style, kw)
+    return _toggle("switch", label, value, on_change, disabled, description, key, cls, style, kw, error)
 
 
 def slider(value=0, *, min=0, max=100, step=1, label=None, show_value=True, on_change=None, format=None,
@@ -890,7 +1013,14 @@ def select(options, value=None, *, label=None, placeholder=None, on_change=None,
            disabled=False, key=None, cls=None, style=None, **kw):
     """Dropdown. ``options``: list, list of (value, label) tuples, or {value: label} dict."""
     opts = _options(options)
+    value, error, on_change, on_blur, required = _unfield(value, error, on_change)
     current, handle = _bind(value, on_change)
+    if on_blur is not None:  # a choice counts as visiting the field
+        on_change_bound = handle
+
+        def handle(v, _h=on_change_bound):
+            on_blur()
+            _h(v)
     lookup = {str(v): v for v, _ in opts}
     children = []
     if placeholder is not None:
@@ -900,9 +1030,11 @@ def select(options, value=None, *, label=None, placeholder=None, on_change=None,
                   value="" if current is None else str(current), **kw)
     if handle is not None:
         sel.on("change", handle, transform=lambda ev: lookup.get(ev.value, ev.value))
+    if on_blur is not None:
+        sel.on("blur", on_blur)
     wrap = Element("div", sel, _icon("chevron-down", 16, cls="pg-select-chevron"),
                    cls=_c("pg-input-wrap pg-select-wrap", "pg-invalid" if error else None))
-    return _field(wrap, label, hint, error, key, cls, style)
+    return _field(wrap, label, hint, error, key, cls, style, required)
 
 
 def radio_group(options, value=None, *, label=None, on_change=None, inline=False, disabled=False,
@@ -936,7 +1068,12 @@ def segmented(options, value=None, *, on_change=None, size="md", full=False, key
 
 
 def form(*children, on_submit=None, gap=4, cls=None, style=None, **kw):
-    """Form. ``on_submit(data)`` receives a dict of named fields (``ui.input(name="email")``)."""
+    """Form. ``on_submit(data)`` receives a dict of named fields (``ui.input(name="email")``).
+
+    The browser's own validation popups are turned off (``novalidate``) so that errors from
+    :mod:`pygui.rules` are the only ones shown, in the app's style.
+    """
+    kw.setdefault("novalidate", True)
     f = Element("form", *children, cls=_c("pg-form", cls), style=_merge({"gap": _sp(gap)}, style), **kw)
     if on_submit is not None:
         f.on("submit", on_submit, prevent=True, transform=lambda ev: ev.form or {})
@@ -1063,8 +1200,10 @@ def _cell(row_data, key):
 
 
 @component
-def _Table(rows, columns, sortable, on_row_click, striped, empty, max_height, compact, cls, style):
+def _Table(rows, columns, sortable, on_row_click, striped, empty, max_height, compact, cls, style,
+           virtual=False, row_height=36):
     sort = use_state(None)
+    scroll = use_state(0) if virtual else None
     rows = list(_val(rows) or [])
     cols = _columns(columns, rows)
     if sort.value is not None:
@@ -1096,25 +1235,49 @@ def _Table(rows, columns, sortable, on_row_click, striped, empty, max_height, co
                             cls=_c("pg-sortable" if can_sort else None, f"pg-align-{c['align']}" if c.get("align") else None),
                             style={"width": _px(c.get("width"))},
                             on_click=(lambda k: lambda: toggle(k))(c["key"]) if can_sort else None))
+    # resolve per column once, not per cell: inspect.signature is slow
+    plan = []
+    for c in cols:
+        fmt = c.get("format")
+        wants_row = fmt is not None and _arity_of(fmt) >= 2
+        plan.append((c["key"], fmt, wants_row, f"pg-align-{c['align']}" if c.get("align") else None))
     body = []
-    for i, r in enumerate(rows):
+    first, last = 0, len(rows)
+    if virtual:
+        first, last = _window(scroll.value, len(rows), row_height, max_height)
+        if first:
+            body.append(Element("tr", cls="pg-vspacer", style={"height": first * row_height}, key="__top"))
+    for i in range(first, last):
+        r = rows[i]
         cells = []
-        for c in cols:
-            v = _cell(r, c["key"])
-            if c.get("format") is not None:
-                v = c["format"](v) if len(inspect.signature(c["format"]).parameters) < 2 else c["format"](v, r)
-            cells.append(Element("td", "" if v is None else v,
-                                 cls=f"pg-align-{c['align']}" if c.get("align") else None))
+        for key_name, fmt, wants_row, align in plan:
+            v = _cell(r, key_name)
+            if fmt is not None:
+                v = fmt(v, r) if wants_row else fmt(v)
+            cells.append(Element("td", "" if v is None else v, cls=align))
         click = (lambda rr: lambda: _call_user(on_row_click, rr))(r) if on_row_click else None
         row_key = r.get("id") if isinstance(r, dict) else None
         body.append(Element("tr", *cells, on_click=click, key=row_key))
+    if virtual and last < len(rows):
+        body.append(Element("tr", cls="pg-vspacer", style={"height": (len(rows) - last) * row_height}, key="__end"))
     if not rows:
         body.append(Element("tr", Element("td", Element("div", empty, cls="pg-table-empty"), colspan=len(cols) or 1)))
     tbl = Element("table", Element("thead", Element("tr", *head)), Element("tbody", *body),
                   cls=_c("pg-table", "pg-striped" if striped else None, "pg-clickable" if on_row_click else None,
-                         "pg-compact" if compact else None))
-    return Element("div", tbl, cls=_c("pg-table-wrap", cls),
+                         "pg-compact" if compact else None, "pg-virtual" if virtual else None),
+                  style={"--pg-row-h": f"{row_height}px"} if virtual else None)
+    wrap = Element("div", tbl, cls=_c("pg-table-wrap", cls),
                    style=_merge({"max-height": _px(max_height)}, style))
+    if virtual:
+        wrap.on("scroll", scroll.set, throttle=40, transform=lambda ev: ev["scrollTop"] or 0)
+    return wrap
+
+
+def _arity_of(fn):
+    try:
+        return len(inspect.signature(fn).parameters)
+    except (TypeError, ValueError):
+        return 1
 
 
 def _call_user(fn, *args):
@@ -1123,14 +1286,95 @@ def _call_user(fn, *args):
 
 
 def table(rows, columns=None, *, sortable=True, on_row_click=None, striped=False, empty="No data",
-          max_height=None, compact=False, key=None, cls=None, style=None):
+          max_height=None, compact=False, virtual=None, row_height=36, key=None, cls=None, style=None):
     """Data table from a list of dicts (or lists).
 
     ``columns`` may be keys, ``(key, label)`` tuples or dicts with
     ``key``, ``label``, ``align``, ``width``, ``format`` (fn(value) or fn(value, row)), ``sortable``.
     Cells may contain elements (badges, buttons...). Click headers to sort.
+
+    ``virtual=True`` renders only the rows in view (plus a margin), so tables of 100,000 rows
+    stay fast; rows then have a fixed ``row_height`` and cells don't wrap. By default it
+    switches on by itself above 1,000 rows. The table scrolls inside ``max_height``
+    (480px when virtual and not given).
     """
-    return _Table(rows, columns, sortable, on_row_click, striped, empty, max_height, compact, cls, style, key=key)
+    n = len(_val(rows) or [])
+    if virtual is None:
+        virtual = n > _VIRTUAL_THRESHOLD
+    if virtual and max_height is None:
+        max_height = 480
+    return _Table(rows, columns, sortable, on_row_click, striped, empty, max_height, compact, cls, style,
+                  virtual, row_height, key=key)
+
+
+_VIRTUAL_THRESHOLD = 1000
+_OVERSCAN_SCREENS = 1  # rows rendered above and below the viewport, in viewport heights
+
+
+def _window(scroll_top, count, item_height, viewport):
+    """The [first, last) slice of a fixed-height list to render for a scroll offset."""
+    viewport = viewport if isinstance(viewport, (int, float)) else 480
+    per_screen = max(1, int(math.ceil(viewport / item_height)))
+    first_visible = int(max(0, scroll_top) // item_height)
+    first = max(0, first_visible - per_screen * _OVERSCAN_SCREENS)
+    last = min(count, first_visible + per_screen * (1 + _OVERSCAN_SCREENS))
+    return min(first, count), last
+
+
+@component
+def _VirtualList(items, render, item_height, height, empty, cls, style):
+    scroll = use_state(0)
+    items = _val(items) or []
+    n = len(items)
+    if not n:
+        return Element("div", empty, cls=_c("pg-vlist pg-vlist-empty", cls),
+                       style=_merge({"height": _px(height)}, style)) if empty is not None else None
+    first, last = _window(scroll.value, n, item_height, height)
+    from .state import _arity
+    with_index = _arity(render, 2) >= 2
+    rows = []
+    for i in range(first, last):
+        item = items[i]
+        content = render(item, i) if with_index else render(item)
+        k = item.get("id") if isinstance(item, dict) else getattr(item, "id", None)
+        rows.append(Element("div", content, cls="pg-vlist-item", key=i if k is None else k))
+    win = Element("div", *rows, cls="pg-vlist-window", style={"transform": f"translateY({first * item_height}px)"})
+    outer = Element("div", Element("div", win, cls="pg-vlist-inner", style={"height": n * item_height}),
+                    cls=_c("pg-vlist", cls), style=_merge({"height": _px(height), "--pg-item-h": f"{item_height}px"},
+                                                          style))
+    outer.on("scroll", scroll.set, throttle=40, transform=lambda ev: ev["scrollTop"] or 0)
+    return outer
+
+
+def virtual_list(items, render, *, item_height=40, height=480, empty=None, key=None, cls=None, style=None):
+    """A scrolling list that only renders the items in view: fine with 100,000 items.
+
+    ``render(item)`` or ``render(item, index)`` returns the content of one item. Every item
+    is ``item_height`` pixels tall. Items that are dicts with an ``"id"`` (or objects with
+    ``.id``) keep their DOM node while scrolling.
+
+        ui.virtual_list(files, lambda f: ui.row(ui.icon("file"), ui.text(f["name"])), item_height=36)
+    """
+    return _VirtualList(items, render, item_height, height, empty, cls, style, key=key)
+
+
+def log_view(log, *, height=360, follow=True, filter=None, numbers=False, key=None, cls=None, style=None):
+    """A console for a :class:`pygui.Log`: streams new lines, draws only visible ones.
+
+    ``follow``  stick to the newest line while the view is scrolled to the bottom
+    ``filter``  a string or ``State``: show only lines containing it (case-insensitive)
+    ``numbers`` show line numbers
+    Lines containing ERROR / WARN / DEBUG are tinted.
+    """
+    s = current_session()
+    if s is not None:
+        log._attach(s)
+    props = {"data_pg_log": log.id, "data_filter": _val(filter) or None,
+             "data_follow": None if follow else "false"}
+    # a key keeps the client's node (and its line buffer view) when siblings come and go
+    return Element("div", cls=_c("pg-log", "pg-log-numbers" if numbers else None, cls),
+                   style=_merge({"height": _px(height)}, style), key=f"pg-log:{log.id}" if key is None else key,
+                   **props)
 
 
 # -- tabs ---------------------------------------------------------------------
@@ -1433,8 +1677,13 @@ def copy(content, notify=True):
 
 
 def background(fn, *args):
-    """Run slow work without freezing the window: ``ui.background(download, url)``."""
-    spawn(fn, *args)
+    """Run slow work without freezing the window: ``ui.background(download, url)``.
+
+    Shorthand for :func:`task` without callbacks; returns the :class:`~pygui.tasks.Task`."""
+    return spawn(fn, *args)
+
+
+from .tasks import run_command, start as task  # noqa: E402
 
 
 # =============================================================================

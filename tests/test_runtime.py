@@ -274,7 +274,9 @@ class DevApiTests(unittest.TestCase):
         h.session.queue.put(("call", 1, "add", [2, 3]))
         h.session.queue.put(("call", 2, "later", [21]))
         h.session.queue.put(("call", 3, "missing", []))
-        r1, r2, r3 = (h.win.next("result") for _ in range(3))
+        # an async function resolves on the shared loop, so results come back by id, not in order
+        by_id = {r["id"]: r for r in (h.win.next("result") for _ in range(3))}
+        r1, r2, r3 = by_id[1], by_id[2], by_id[3]
         self.assertEqual((r1["ok"], r1["value"]), (True, 5))
         self.assertEqual(r2["value"], 42)
         self.assertFalse(r3["ok"])
