@@ -62,10 +62,10 @@ No `pip install`, no Node, no Rust toolchain. You only need Python 3.9+.
 
 ## Quick start
 
-Install from [PyPI](https://pypi.org/project/pygui-desktop/) (the package is `pygui-desktop`, you import `pygui`):
+Install from [PyPI](https://pypi.org/project/zepygui/) (the package is `zepygui`, you import `pygui`):
 
 ```bash
-python3 -m pip install pygui-desktop
+python3 -m pip install zepygui
 ```
 
 Or, from a clone of [the repository](https://github.com/rzafiamy/pygui), in editable mode:

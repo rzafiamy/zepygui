@@ -12,7 +12,7 @@
 # bump commit and tag are removed again, so the repository is left as it was.
 set -euo pipefail
 
-PACKAGE="pygui-desktop"
+PACKAGE="zepygui"
 IMPORT_NAME="pygui"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${PYTHON:-python3}"
