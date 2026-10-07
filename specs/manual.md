@@ -15,7 +15,7 @@ The requirements that no automated test reaches, as procedures a person runs.
 
 **What is not manual.** Anything the page itself can report is automated:
 `tests/test_native.py` opens a real native window, drives it with JavaScript and
-reads the DOM back over the bridge (`PYGUI_GUI_TESTS=1`). A procedure belongs here
+reads the DOM back over the bridge (`ZEPYGUI_GUI_TESTS=1`). A procedure belongs here
 only when that is not enough.
 
 Run the whole suite before a release; run the affected sections when an area
@@ -66,7 +66,7 @@ repository checked out, and a terminal in its root. The dashboard example is
 
 | Id | Test | Requirements |
 |---|---|---|
-| MT-040 | `python3 -m pygui new /tmp/mtapp` (with the package installed, or `PYTHONPATH=.`), then `python3 /tmp/mtapp/app.py`. With the window open, change the heading text in `app.py` and save. Confirm the terminal prints a reload notice and the window shows the new heading within about two seconds. Introduce a syntax error and save: the terminal reports it and waits; fix it and save: the app comes back. | REQ-DEV-001 |
+| MT-040 | `python3 -m zepygui new /tmp/mtapp` (with the package installed, or `PYTHONPATH=.`), then `python3 /tmp/mtapp/app.py`. With the window open, change the heading text in `app.py` and save. Confirm the terminal prints a reload notice and the window shows the new heading within about two seconds. Introduce a syntax error and save: the terminal reports it and waits; fix it and save: the app comes back. | REQ-DEV-001 |
 | MT-041 | Run the dashboard (it calls `app.run(debug=True)`), right-click anywhere on the page. Confirm **Inspect Element** is offered and opens Web Inspector. Run `examples/hello.py` (no debug): confirm the item is absent. | REQ-DEV-003 |
 | MT-042 | From a fresh clone, without installing anything, run `python3 examples/hello.py`, `python3 examples/todo.py` and `python3 examples/dashboard.py`, each from the repository root and once from inside `examples/`. Confirm each opens its window with no `ModuleNotFoundError`. | REQ-DEV-005 |
 
@@ -74,8 +74,8 @@ repository checked out, and a terminal in its root. The dashboard example is
 
 | Id | Test | Requirements |
 |---|---|---|
-| MT-050 | **Windows 10/11** with Edge only: run `python examples\dashboard.py`. Confirm a window with no tabs or address bar opens (Edge app mode) and the app works. **Linux** with Chrome or Chromium installed: same check. On both, confirm a profile folder for the app exists (`%LOCALAPPDATA%\pygui\profiles\northwind`, `~/.cache/pygui/profiles/northwind`). | REQ-FBK-001 |
-| MT-051 | On a Linux machine with **no** Chromium-based browser (or with `PYGUI_BROWSER=/nonexistent`), run `examples/hello.py`. Confirm the terminal says no Edge/Chrome/Chromium was found and the app opens in the default browser and works. | REQ-FBK-002 |
+| MT-050 | **Windows 10/11** with Edge only: run `python examples\dashboard.py`. Confirm a window with no tabs or address bar opens (Edge app mode) and the app works. **Linux** with Chrome or Chromium installed: same check. On both, confirm a profile folder for the app exists (`%LOCALAPPDATA%\zepygui\profiles\northwind`, `~/.cache/zepygui/profiles/northwind`). | REQ-FBK-001 |
+| MT-051 | On a Linux machine with **no** Chromium-based browser (or with `ZEPYGUI_BROWSER=/nonexistent`), run `examples/hello.py`. Confirm the terminal says no Edge/Chrome/Chromium was found and the app opens in the default browser and works. | REQ-FBK-002 |
 | MT-052 | On macOS run `examples/hello.py` with `app.run(mode="window")` (Chrome installed). Close the window. Confirm the terminal prompt returns within about five seconds. **Revert afterwards.** | REQ-FBK-004 |
 | MT-053 | Run `examples/todo.py` with `app.run(mode="browser", reload=True)`. With the tab open, add `ui.text("v2")` to the page and save. Confirm the tab shows "Reconnecting…" briefly, then reloads by itself and shows `v2`. **Revert afterwards.** | REQ-FBK-006 |
 | MT-054 | With Python 3.9 **and** the newest available Python 3 (e.g. via `pyenv` or python.org installers), run `python3 -m unittest discover -s tests` and `examples/dashboard.py`. Confirm both pass and open on each version. Record the versions in the release checklist. | REQ-PKG-002 |

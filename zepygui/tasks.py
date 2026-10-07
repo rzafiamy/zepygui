@@ -6,7 +6,7 @@
 * **subprocesses** whose output streams line by line,
 
 all returning a :class:`Task` whose ``status``, ``progress`` and ``message`` are
-reactive :class:`~pygui.State` values a page can display.
+reactive :class:`~zepygui.State` values a page can display.
 
     def scan(folder, task):                     # a parameter named `task` receives the Task
         for i, entry in enumerate(entries):
@@ -64,7 +64,7 @@ def thread_pool():
     with _lock:
         if _threads is None:
             _threads = cf.ThreadPoolExecutor(max_workers=min(32, (os.cpu_count() or 1) + 4),
-                                             thread_name_prefix="pygui-task")
+                                             thread_name_prefix="zepygui-task")
         return _threads
 
 
@@ -83,7 +83,7 @@ def event_loop():
     with _lock:
         if _loop is None or _loop.is_closed():
             _loop = asyncio.new_event_loop()
-            threading.Thread(target=_loop.run_forever, name="pygui-asyncio", daemon=True).start()
+            threading.Thread(target=_loop.run_forever, name="zepygui-asyncio", daemon=True).start()
         return _loop
 
 
@@ -330,7 +330,7 @@ def run_command(cmd, *, on_line=None, log=None, on_done=None, on_error=None, cwd
                 shell=False, stderr=True, encoding="utf-8", name=None):
     """Run an external command and stream its output, line by line, without blocking.
 
-    ``log``      a :class:`pygui.Log` that receives every line (show it with ``ui.log_view``)
+    ``log``      a :class:`zepygui.Log` that receives every line (show it with ``ui.log_view``)
     ``on_line``  ``fn(line)`` called for every line, on the reading thread
     ``stderr``   merge standard error into the stream (default ``True``)
     ``on_done(returncode)`` runs when the command exits with status 0, ``on_error(exc)``
@@ -389,5 +389,5 @@ def run_command(cmd, *, on_line=None, log=None, on_done=None, on_error=None, cwd
         else:
             finish("error", code, CommandError(code, cmd))
 
-    threading.Thread(target=read, name="pygui-command", daemon=True).start()
+    threading.Thread(target=read, name="zepygui-command", daemon=True).start()
     return task

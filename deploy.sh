@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Release PyGUI: bump the version, test, build, upload to PyPI (or TestPyPI), tag and push.
+# Release ZePyGUI: bump the version, test, build, upload to PyPI (or TestPyPI), tag and push.
 #
 #   ./deploy.sh             asks for everything it needs
 #   ./deploy.sh --dry-run   does every step except the upload and the push
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 PACKAGE="zepygui"
-IMPORT_NAME="pygui"
+IMPORT_NAME="zepygui"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${PYTHON:-python3}"
 DRY_RUN=0
@@ -187,7 +187,7 @@ import re, sys, pathlib
 version = sys.argv[1]
 for path, pattern, repl, required in (
     ("pyproject.toml", r'^version\s*=\s*"[^"]+"', f'version = "{version}"', True),
-    ("pygui/__init__.py", r'^__version__\s*=\s*"[^"]+"', f'__version__ = "{version}"', True),
+    ("zepygui/__init__.py", r'^__version__\s*=\s*"[^"]+"', f'__version__ = "{version}"', True),
     ("specs/specification.md", r'^Version of record: `[^`]+`', f'Version of record: `{version}`', False),
 ):
     p = pathlib.Path(path)
@@ -202,7 +202,7 @@ step "Running the tests"
 # the suite prints expected tracebacks (error-handling tests): keep them in a log unless it fails
 GUI_FLAG=""
 [[ $RUN_GUI -eq 1 ]] && GUI_FLAG=1
-if ! PYGUI_GUI_TESTS="$GUI_FLAG" "$PYTHON" -m unittest discover -s tests >"$WORK/tests.log" 2>&1; then
+if ! ZEPYGUI_GUI_TESTS="$GUI_FLAG" "$PYTHON" -m unittest discover -s tests >"$WORK/tests.log" 2>&1; then
   tail -n 60 "$WORK/tests.log"
   rollback
   die "tests failed (full log above)"
@@ -227,11 +227,11 @@ step "Checking the wheel in a clean environment"
 "$WORK/check/bin/python" -m pip install --quiet dist/*.whl || { rollback; die "the wheel does not install"; }
 (cd "$WORK" && "$WORK/check/bin/python" - "$VERSION" <<'EOF'
 import os, sys
-import pygui
-from pygui import App, ui
-from pygui.app import Renderer, Session
-assert pygui.__version__ == sys.argv[1], pygui.__version__
-assert os.path.isfile(os.path.join(os.path.dirname(pygui.__file__), "static", "client.js"))
+import zepygui
+from zepygui import App, ui
+from zepygui.app import Renderer, Session
+assert zepygui.__version__ == sys.argv[1], zepygui.__version__
+assert os.path.isfile(os.path.join(os.path.dirname(zepygui.__file__), "static", "client.js"))
 app = App("check")
 app.page("/")(lambda: ui.h1("ok"))
 s = Session(app, "c", "/", "dark")
@@ -286,7 +286,7 @@ INDEX_ARGS="--index-url=https://pypi.org/simple/"
 [[ "$INDEX" == "testpypi" ]] && INDEX_ARGS="--index-url=https://test.pypi.org/simple/"
 for attempt in 1 2 3 4 5 6; do
   if "$WORK/verify/bin/python" -m pip install --quiet --no-cache-dir "$INDEX_ARGS" "$PACKAGE==$VERSION" 2>/dev/null; then
-    (cd "$WORK" && "$WORK/verify/bin/python" -c "import pygui; print('installed', pygui.__version__)")
+    (cd "$WORK" && "$WORK/verify/bin/python" -c "import zepygui; print('installed', zepygui.__version__)")
     ok "pip install $PACKAGE==$VERSION works"
     break
   fi

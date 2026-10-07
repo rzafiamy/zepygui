@@ -113,7 +113,7 @@ themselves: the `covers:` line of each test in `tests/test_*.py`, and the rows o
 
 `auto` tests run headless with `python3 -m unittest discover -s tests`.
 `auto (gui)` tests open a real native window and run on macOS with
-`PYGUI_GUI_TESTS=1`.
+`ZEPYGUI_GUI_TESTS=1`.
 
 Requirements: **{total}** · covered by an automated test: **{counts['auto']}**
 (of which GUI only: **{counts['gui']}**) · manual only: **{counts['manual']}**

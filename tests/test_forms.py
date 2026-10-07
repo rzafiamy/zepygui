@@ -5,7 +5,7 @@ import unittest
 
 from helpers import Harness, find, find_all, has_class, tag, text_of
 
-from pygui import App, Field, Form, State, ValidationError, rules, ui
+from zepygui import App, Field, Form, State, ValidationError, rules, ui
 
 
 def render(page):

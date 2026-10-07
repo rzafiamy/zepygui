@@ -1,6 +1,6 @@
 """Input and form validation.
 
-    from pygui import ui, rules
+    from zepygui import ui, rules
 
     @app.page("/signup")
     def signup():

@@ -29,13 +29,13 @@ def _snapshot(root):
 
 def run_with_reloader():
     root = Path(sys.argv[0]).resolve().parent
-    env = dict(os.environ, PYGUI_CHILD="1")
+    env = dict(os.environ, ZEPYGUI_CHILD="1")
     cmd = [sys.executable] + sys.argv
 
     def start():
         return subprocess.Popen(cmd, env=env)
 
-    print(f"[pygui] watching {root} for changes")
+    print(f"[zepygui] watching {root} for changes")
     child = start()
     files = _snapshot(root)
     crashed = False
@@ -47,11 +47,11 @@ def run_with_reloader():
                 return  # window closed by the user
             if code is not None and not crashed:
                 crashed = True
-                print("[pygui] app exited with an error; fix it and save to restart")
+                print("[zepygui] app exited with an error; fix it and save to restart")
             current = _snapshot(root)
             if current != files:
                 files = current
-                print("[pygui] change detected, reloading…")
+                print("[zepygui] change detected, reloading…")
                 if child.poll() is None:
                     child.terminate()
                     try:

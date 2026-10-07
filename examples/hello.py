@@ -1,12 +1,12 @@
-"""The smallest PyGUI app: a counter."""
+"""The smallest ZePyGUI app: a counter."""
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))  # run without installing
 
-from pygui import App, State, ui
+from zepygui import App, State, ui
 
-app = App("Hello PyGUI", width=520, height=420)
+app = App("Hello ZePyGUI", width=520, height=420)
 count = State(0)
 
 

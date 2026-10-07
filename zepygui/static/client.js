@@ -1,4 +1,4 @@
-/* PyGUI client runtime: receives UI trees from Python, patches the DOM, sends events back. */
+/* ZePyGUI client runtime: receives UI trees from Python, patches the DOM, sends events back. */
 (() => {
   "use strict";
   const CFG = window.__PG__ || {};
@@ -6,7 +6,7 @@
   const root = document.getElementById("pg-root");
   const toastBox = document.getElementById("pg-toasts");
   const statusEl = document.getElementById("pg-status");
-  const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pygui;
+  const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.zepygui;
   const NATIVE = !!bridge;
   const PROPS = { value: 1, checked: 1 };
   const calls = new Map();
@@ -434,8 +434,8 @@
   }
 
   // ------------------------------------------------------------------ public API
-  window.pygui = {
-    /** Call a Python function registered with @app.expose: `await pygui.call("name", arg1, arg2)` */
+  window.zepygui = {
+    /** Call a Python function registered with @app.expose: `await zepygui.call("name", arg1, arg2)` */
     call(name, ...args) {
       return new Promise((resolve, reject) => {
         const id = ++callId;

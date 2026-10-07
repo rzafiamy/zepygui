@@ -1,6 +1,6 @@
-"""PyGUI: beautiful desktop apps in pure Python, with no dependencies.
+"""ZePyGUI: beautiful desktop apps in pure Python, with no dependencies.
 
-    from pygui import App, State, ui
+    from zepygui import App, State, ui
 
     app = App("Hello")
     count = State(0)

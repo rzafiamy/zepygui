@@ -5,7 +5,7 @@ import unittest
 
 from helpers import Harness, find, find_all, handler_id, tag, text_of
 
-from pygui import App, Event, State, ui
+from zepygui import App, Event, State, ui
 
 
 def single_page(fn, path="/", **kw):

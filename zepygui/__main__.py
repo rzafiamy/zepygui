@@ -1,8 +1,8 @@
-"""Command line: ``python -m pygui new myapp`` creates a starter app."""
+"""Command line: ``python -m zepygui new myapp`` creates a starter app."""
 import sys
 from pathlib import Path
 
-TEMPLATE = '''from pygui import App, State, ui
+TEMPLATE = '''from zepygui import App, State, ui
 
 app = App("{title}", width=1000, height=700)
 name = State("")
@@ -54,7 +54,7 @@ def main(argv):
         file.write_text(TEMPLATE.format(title=title, file=file.name), "utf-8")
         print(f"Created {file}\nRun it with:  python {file}")
         return
-    print("usage: python -m pygui new <folder>")
+    print("usage: python -m zepygui new <folder>")
 
 
 if __name__ == "__main__":

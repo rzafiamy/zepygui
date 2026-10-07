@@ -6,13 +6,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 import itertools
 
-from pygui import App, State, ui
+from zepygui import App, State, ui
 
 app = App("Todos", width=560, height=720, accent="#8b5cf6")
 
 ids = itertools.count(1)
 todos = State([
-    {"id": next(ids), "text": "Try PyGUI", "done": True},
+    {"id": next(ids), "text": "Try ZePyGUI", "done": True},
     {"id": next(ids), "text": "Build something beautiful", "done": False},
 ])
 draft = State("")

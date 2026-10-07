@@ -1,13 +1,13 @@
-# PyGUI
+# ZePyGUI
 
 **Beautiful native desktop apps in pure Python. Zero dependencies.**
 
-PyGUI works like Tauri, but you write Python instead of Rust and JavaScript. Your app runs in
+ZePyGUI works like Tauri, but you write Python instead of Rust and JavaScript. Your app runs in
 a real native window using the operating system's web engine, comes with a polished design system,
 and updates itself when your data changes.
 
 ```python
-from pygui import App, State, ui
+from zepygui import App, State, ui
 
 app = App("Hello")
 count = State(0)
@@ -30,7 +30,7 @@ No `pip install`, no Node, no Rust toolchain. You only need Python 3.9+.
 
 ---
 
-## Why PyGUI
+## Why ZePyGUI
 
 | | |
 |---|---|
@@ -62,28 +62,28 @@ No `pip install`, no Node, no Rust toolchain. You only need Python 3.9+.
 
 ## Quick start
 
-Install from [PyPI](https://pypi.org/project/zepygui/) (the package is `zepygui`, you import `pygui`):
+Install from [PyPI](https://pypi.org/project/zepygui/):
 
 ```bash
 python3 -m pip install zepygui
 ```
 
-Or, from a clone of [the repository](https://github.com/rzafiamy/pygui), in editable mode:
+Or, from a clone of [the repository](https://github.com/rzafiamy/zepygui), in editable mode:
 
 ```bash
-git clone https://github.com/rzafiamy/pygui.git
-cd pygui
+git clone https://github.com/rzafiamy/zepygui.git
+cd zepygui
 python3 -m pip install -e .
 ```
 
 Then create and run an app:
 
 ```bash
-python3 -m pygui new myapp     # creates myapp/app.py (with a sidebar, pages, theme toggle)
+python3 -m zepygui new myapp     # creates myapp/app.py (with a sidebar, pages, theme toggle)
 python3 myapp/app.py
 ```
 
-(Without installing, put your app next to the `pygui/` folder, or run the examples below, which find it on their own.)
+(Without installing, put your app next to the `zepygui/` folder, or run the examples below, which find it on their own.)
 
 Or run the examples:
 
@@ -175,7 +175,7 @@ In lists, give items a `key=` so their state follows them when the list is reord
 
 ### Event handlers
 
-Handlers can take zero or one argument; PyGUI passes the argument only if your function accepts it.
+Handlers can take zero or one argument; ZePyGUI passes the argument only if your function accepts it.
 
 ```python
 ui.button("Save", on_click=save)                       # save()
@@ -189,7 +189,7 @@ async def load():                                      # async handlers work too
     data.set(await fetch())
 ```
 
-A handler runs on its window's thread, so a slow one freezes that window (PyGUI prints a
+A handler runs on its window's thread, so a slow one freezes that window (ZePyGUI prints a
 warning when a handler takes longer than 250 ms). Move slow work into a [task](#heavy-work).
 
 ### App shell layout
@@ -311,7 +311,7 @@ ui.button("Cancel", job.cancel)
 | External programs | `ui.run_command(cmd, log=log, on_line=...)` | a reader thread per command |
 
 `process=True` re-imports your script in each worker process: guard `app.run()` with
-`if __name__ == "__main__":` (PyGUI also refuses to open a window from a worker).
+`if __name__ == "__main__":` (ZePyGUI also refuses to open a window from a worker).
 `ui.background(fn, *args)` is the old spelling of `ui.task(fn, *args)`.
 
 Changing `State` from a task is safe and cheap: each window queues at most one redraw and
@@ -365,7 +365,7 @@ Give an input a `Field` instead of a `State`: it binds the value, shows the erro
 the field required.
 
 ```python
-from pygui import rules, ValidationError
+from zepygui import rules, ValidationError
 
 @app.page("/signup")
 def signup():
@@ -429,7 +429,7 @@ ui.html("<marquee>raw HTML</marquee>")                          # raw markup (tr
 ui.run_js("document.body.requestFullscreen()")
 
 @app.expose                       # call Python from your own JavaScript:
-def add(a, b):                    #   const sum = await pygui.call("add", 2, 3)
+def add(a, b):                    #   const sum = await zepygui.call("add", 2, 3)
     return a + b
 ```
 
@@ -448,13 +448,13 @@ app.run(mode="browser")      # open in your default browser (handy for dev tools
 ## Project layout
 
 ```
-pygui/
+zepygui/
   app.py        App, routing, per-window sessions, renderer
   ui.py         component library
   state.py      reactive State
   tasks.py      background work: thread pool, process pool, asyncio loop, commands
   log.py        streaming log buffer behind ui.log_view
-  forms.py      validation: Field, Form, rules (also exported as pygui.rules)
+  forms.py      validation: Field, Form, rules (also exported as zepygui.rules)
   macos.py      native NSWindow + WKWebView via ctypes
   window.py     Edge/Chromium app-window launcher (Windows/Linux)
   server.py     stdlib HTTP + WebSocket server (fallback transport only)
@@ -464,7 +464,7 @@ pygui/
 examples/       hello.py, todo.py, dashboard.py, console.py, files.py, signup.py
 bench/          python3 bench/bench.py   (rendering, scheduling, memory, logs, tasks)
 tests/          python3 -m unittest discover -s tests   (headless)
-                PYGUI_GUI_TESTS=1 python3 -m unittest discover -s tests   (+ real native windows, macOS)
+                ZEPYGUI_GUI_TESTS=1 python3 -m unittest discover -s tests   (+ real native windows, macOS)
                 python3 tests/matrix.py   (rebuild specs/matrix.md; fails on any uncovered requirement)
 specs/         specification, traceability matrix, manual test suite
 licences/      licence texts of third-party material (see CREDITS.md)
@@ -476,15 +476,15 @@ licences/      licence texts of third-party material (see CREDITS.md)
 * **Windows / Linux**: use the Edge/Chromium app window. If no Chromium browser is installed, the app
   opens in the default browser. Native WebView2 (Windows) and WebKitGTK (Linux) backends are the next step.
 * Packaging into a standalone `.app`/`.exe` is not built in yet; tools such as PyInstaller can bundle
-  a PyGUI app because it has no dependencies to collect.
+  a ZePyGUI app because it has no dependencies to collect.
 
 ## Specifications
 
-* [`specs/specification.md`](https://github.com/rzafiamy/pygui/blob/main/specs/specification.md): what PyGUI does, as atomic, testable requirements
-* [`specs/matrix.md`](https://github.com/rzafiamy/pygui/blob/main/specs/matrix.md): traceability matrix, generated by `python3 tests/matrix.py`
-* [`specs/manual.md`](https://github.com/rzafiamy/pygui/blob/main/specs/manual.md): manual test procedures for what automation cannot reach
+* [`specs/specification.md`](https://github.com/rzafiamy/zepygui/blob/main/specs/specification.md): what ZePyGUI does, as atomic, testable requirements
+* [`specs/matrix.md`](https://github.com/rzafiamy/zepygui/blob/main/specs/matrix.md): traceability matrix, generated by `python3 tests/matrix.py`
+* [`specs/manual.md`](https://github.com/rzafiamy/zepygui/blob/main/specs/manual.md): manual test procedures for what automation cannot reach
 
 ## License
 
-MIT License, copyright (c) 2026 rzafiamy. See [`LICENSE`](https://github.com/rzafiamy/pygui/blob/main/LICENSE).
-Third-party material: [`CREDITS.md`](https://github.com/rzafiamy/pygui/blob/main/CREDITS.md).
+MIT License, copyright (c) 2026 rzafiamy. See [`LICENSE`](https://github.com/rzafiamy/zepygui/blob/main/LICENSE).
+Third-party material: [`CREDITS.md`](https://github.com/rzafiamy/zepygui/blob/main/CREDITS.md).

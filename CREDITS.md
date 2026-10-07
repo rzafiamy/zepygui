@@ -1,9 +1,9 @@
 # Third-party credits
 
-PyGUI has **no runtime dependencies**: it imports only the Python standard
+ZePyGUI has **no runtime dependencies**: it imports only the Python standard
 library, and nothing is vendored into the repository as a library bundle.
 This file records the third-party material that *is* included — adapted icon
-artwork — and the platform components PyGUI relies on at run time without
+artwork — and the platform components ZePyGUI relies on at run time without
 shipping them.
 
 The complete licence texts of included material are kept in
@@ -13,12 +13,12 @@ The complete licence texts of included material are kept in
 
 | Material | Where | Used for | Licence | Website | Source repository |
 | --- | --- | --- | --- | --- | --- |
-| [Lucide](https://lucide.dev/) icon paths | `ICONS` in [`pygui/ui.py`](pygui/ui.py) | Built-in stroke icons (`ui.icon(...)`) | ISC | [lucide.dev](https://lucide.dev/) | [github.com/lucide-icons/lucide](https://github.com/lucide-icons/lucide) |
-| [Feather](https://feathericons.com/) icon paths | `ICONS` in [`pygui/ui.py`](pygui/ui.py) | Built-in stroke icons (`ui.icon(...)`) | MIT | [feathericons.com](https://feathericons.com/) | [github.com/feathericons/feather](https://github.com/feathericons/feather) |
+| [Lucide](https://lucide.dev/) icon paths | `ICONS` in [`zepygui/ui.py`](zepygui/ui.py) | Built-in stroke icons (`ui.icon(...)`) | ISC | [lucide.dev](https://lucide.dev/) | [github.com/lucide-icons/lucide](https://github.com/lucide-icons/lucide) |
+| [Feather](https://feathericons.com/) icon paths | `ICONS` in [`zepygui/ui.py`](zepygui/ui.py) | Built-in stroke icons (`ui.icon(...)`) | MIT | [feathericons.com](https://feathericons.com/) | [github.com/feathericons/feather](https://github.com/feathericons/feather) |
 
 Many entries of `ICONS` reproduce or adapt SVG path data from Lucide and its
 predecessor Feather (24×24 grid, 2px stroke, round caps). Others were drawn for
-PyGUI in the same style: the `settings` gear is computed in `_gear()`, and the
+ZePyGUI in the same style: the `settings` gear is computed in `_gear()`, and the
 circles are produced by `_circ()`. Both licences require their copyright notice
 to accompany copies of the material:
 
@@ -27,8 +27,8 @@ to accompany copies of the material:
 
 ## Platform components used at run time (not shipped)
 
-PyGUI calls these through the operating system. They are neither copied into
-this repository nor redistributed with an app built on PyGUI.
+ZePyGUI calls these through the operating system. They are neither copied into
+this repository nor redistributed with an app built on ZePyGUI.
 
 | Component | Used for | Licence | Provided by |
 | --- | --- | --- | --- |
@@ -55,5 +55,5 @@ No code from these projects is included.
 
 ## Notice
 
-When third-party code, icons, fonts or other assets are added to PyGUI, add
+When third-party code, icons, fonts or other assets are added to ZePyGUI, add
 them to this file and keep their upstream licence text in `licences/`.

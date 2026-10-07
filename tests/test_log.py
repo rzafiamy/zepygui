@@ -5,7 +5,7 @@ import unittest
 
 from helpers import Harness
 
-from pygui import App, Log, ui
+from zepygui import App, Log, ui
 
 
 def view(log):

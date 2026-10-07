@@ -11,7 +11,7 @@ import zlib
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-from pygui import App, Log, State, rules, ui  # noqa: E402
+from zepygui import App, Log, State, rules, ui  # noqa: E402
 
 scenario = sys.argv[1]
 app = App(f"Native {scenario}", width=640, height=480)
@@ -29,7 +29,7 @@ def report(value):
 def ask(js_expr, timeout=6.0):
     """Evaluate ``js_expr`` in the window and return its value."""
     got_report.clear()
-    ui.run_js(f"pygui.call('report', {js_expr})")
+    ui.run_js(f"zepygui.call('report', {js_expr})")
     if not got_report.wait(timeout):
         raise TimeoutError(js_expr)
     return reports[-1]

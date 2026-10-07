@@ -1,20 +1,20 @@
-# PyGUI — Specification
+# ZePyGUI — Specification
 
-Version of record: `0.1.0` (see `pyproject.toml`, `pygui/__init__.py`).
+Version of record: `0.1.0` (see `pyproject.toml`, `zepygui/__init__.py`).
 
 ## 1. Purpose and scope
 
-PyGUI is a framework for building desktop applications in Python, with no
+ZePyGUI is a framework for building desktop applications in Python, with no
 dependency outside the standard library. An application declares pages as
-Python functions returning a tree of components; PyGUI renders that tree in a
+Python functions returning a tree of components; ZePyGUI renders that tree in a
 native window that hosts the operating system's web engine, and keeps it in
 sync with reactive state. This document lists what the framework does (§4)
 and states each behaviour as an atomic requirement (§5).
 
-**Scope.** The `pygui` package (runtime, component library, design system,
+**Scope.** The `zepygui` package (runtime, component library, design system,
 client runtime, window backends, desktop helpers, developer tools), the
 examples under `examples/`, and the tests under `tests/`.
-Out of scope: applications built with PyGUI, and the third-party engines it
+Out of scope: applications built with ZePyGUI, and the third-party engines it
 drives (WebKit, Chromium).
 
 ### 1.1 Architecture at a glance
@@ -69,7 +69,7 @@ file without a test breaks that command — which is the point.
 
 Automated tests come in two kinds. **Unit/integration** tests run headless
 everywhere (`python3 -m unittest discover -s tests`). **GUI** tests open a
-real native window and run only on macOS when `PYGUI_GUI_TESTS=1` is set;
+real native window and run only on macOS when `ZEPYGUI_GUI_TESTS=1` is set;
 the matrix labels them `auto (gui)`.
 
 ## 3. Definitions
@@ -83,7 +83,7 @@ the matrix labels them `auto (gui)`.
 | **Layout** | A function registered with `@app.layout`, receiving a page's content and returning the shell around it. |
 | **Element** | A node of the UI tree: tag, attributes, events, children, optional key. |
 | **Component** | A function decorated with `@ui.component`; rendered lazily, with its own hook state. |
-| **State** | A reactive value (`pygui.State`). Reading it during a render subscribes the window; setting it re-renders subscribers. |
+| **State** | A reactive value (`zepygui.State`). Reading it during a render subscribes the window; setting it re-renders subscribers. |
 | **Hook** | A per-window `State` obtained with `ui.use_state` inside a page or component, identified by its position in the tree. |
 | **Render** | Building the JSON tree of a window and sending it to the client. |
 | **Handler** | A Python callable attached to an element event (`on_click=…`). |
@@ -139,7 +139,7 @@ the matrix labels them `auto (gui)`.
 |---|---|
 | F-19 | Auto-reload on save (`reload=True`) |
 | F-20 | Web inspector (`debug=True`) |
-| F-21 | Project scaffolding (`python -m pygui new`) |
+| F-21 | Project scaffolding (`python -m zepygui new`) |
 | F-22 | JavaScript → Python calls (`@app.expose`) and Python → JavaScript (`ui.run_js`) |
 | F-23 | Periodic background timers (`@app.timer`) |
 
@@ -152,7 +152,7 @@ the matrix labels them `auto (gui)`.
 | F-26 | External commands with line-by-line output streaming |
 | F-27 | Log console streaming 100,000+ lines (`Log`, `ui.log_view`) |
 | F-28 | Virtualized tables and lists (`ui.table(virtual=…)`, `ui.virtual_list`) |
-| F-29 | Input and form validation (`pygui.rules`, `ui.use_form`, `ui.use_field`) |
+| F-29 | Input and form validation (`zepygui.rules`, `ui.use_form`, `ui.use_field`) |
 
 ## 5. Atomic requirements
 
@@ -223,7 +223,7 @@ the matrix labels them `auto (gui)`.
 
 ### 5.7 Components (REQ-CMP)
 
-- **REQ-CMP-001** Every component exported by `pygui.ui` MUST render with minimal arguments. **[T]**
+- **REQ-CMP-001** Every component exported by `zepygui.ui` MUST render with minimal arguments. **[T]**
 - **REQ-CMP-002** `modal` MUST render nothing while its `State` is false. **[T]**
 - **REQ-CMP-003** `tabs` MUST render only the active tab's content. **[T]**
 - **REQ-CMP-004** Clicking a sortable table header MUST cycle the rows through ascending, descending and original order. **[T]**
@@ -290,7 +290,7 @@ the matrix labels them `auto (gui)`.
 - **REQ-DEV-001** `app.run(reload=True)` MUST restart the app when a watched source file changes. **[M]**
 - **REQ-DEV-002** The reload watcher MUST ignore hidden, `__pycache__`, virtual-environment and `node_modules` directories, and files other than source and style files. **[T]**
 - **REQ-DEV-003** `app.run(debug=True)` MUST enable the web inspector. **[M]**
-- **REQ-DEV-004** `python -m pygui new <dir>` MUST create a valid `app.py` and MUST refuse to overwrite an existing one. **[T]**
+- **REQ-DEV-004** `python -m zepygui new <dir>` MUST create a valid `app.py` and MUST refuse to overwrite an existing one. **[T]**
 - **REQ-DEV-005** The examples MUST run with `python3 examples/<name>.py` without installing the package. **[M]**
 - **REQ-DEV-006** A function registered with `@app.expose` MUST be callable from JavaScript and return its result, or its error. **[T]**
 - **REQ-DEV-007** A function registered with `@app.timer` MUST run periodically while the app runs, and stop when it ends. **[T]**
@@ -353,19 +353,19 @@ hand-kept table does.
 
 | Area | Primary source | Tests |
 |---|---|---|
-| REQ-STA | `pygui/state.py` | `tests/test_state.py` |
-| REQ-TRE, REQ-HOK, REQ-CMP | `pygui/ui.py`, `pygui/app.py` (`Renderer`) | `tests/test_tree.py` |
-| REQ-RND | `pygui/app.py` (`Session`, `Renderer`), `pygui/static/client.js` | `tests/test_runtime.py`, `tests/test_native.py` |
-| REQ-EVT, REQ-RTE, REQ-THM | `pygui/app.py`, `pygui/ui.py` | `tests/test_runtime.py` |
-| REQ-WIN | `pygui/macos.py`, `pygui/static/client.js` | `tests/test_native.py` (GUI, opt-in) |
-| REQ-FBK, REQ-SEC | `pygui/server.py`, `pygui/window.py`, `pygui/app.py` | `tests/test_platform.py` |
-| REQ-DSK | `pygui/desktop.py` | `tests/test_platform.py` |
-| REQ-DEV | `pygui/reloader.py`, `pygui/__main__.py`, `pygui/app.py` | `tests/test_platform.py`, `tests/test_runtime.py` |
-| REQ-PKG | `pyproject.toml`, `pygui/` | `tests/test_platform.py` |
-| REQ-PRF | `pygui/app.py` (`Renderer`, `Session`), `pygui/ui.py` | `tests/test_performance.py` |
-| REQ-TSK | `pygui/tasks.py`, `pygui/state.py` | `tests/test_tasks.py` |
-| REQ-LOG | `pygui/log.py`, `pygui/static/client.js` | `tests/test_log.py`, `tests/test_native.py` |
-| REQ-VAL | `pygui/forms.py`, `pygui/ui.py` | `tests/test_forms.py`, `tests/test_native.py` |
+| REQ-STA | `zepygui/state.py` | `tests/test_state.py` |
+| REQ-TRE, REQ-HOK, REQ-CMP | `zepygui/ui.py`, `zepygui/app.py` (`Renderer`) | `tests/test_tree.py` |
+| REQ-RND | `zepygui/app.py` (`Session`, `Renderer`), `zepygui/static/client.js` | `tests/test_runtime.py`, `tests/test_native.py` |
+| REQ-EVT, REQ-RTE, REQ-THM | `zepygui/app.py`, `zepygui/ui.py` | `tests/test_runtime.py` |
+| REQ-WIN | `zepygui/macos.py`, `zepygui/static/client.js` | `tests/test_native.py` (GUI, opt-in) |
+| REQ-FBK, REQ-SEC | `zepygui/server.py`, `zepygui/window.py`, `zepygui/app.py` | `tests/test_platform.py` |
+| REQ-DSK | `zepygui/desktop.py` | `tests/test_platform.py` |
+| REQ-DEV | `zepygui/reloader.py`, `zepygui/__main__.py`, `zepygui/app.py` | `tests/test_platform.py`, `tests/test_runtime.py` |
+| REQ-PKG | `pyproject.toml`, `zepygui/` | `tests/test_platform.py` |
+| REQ-PRF | `zepygui/app.py` (`Renderer`, `Session`), `zepygui/ui.py` | `tests/test_performance.py` |
+| REQ-TSK | `zepygui/tasks.py`, `zepygui/state.py` | `tests/test_tasks.py` |
+| REQ-LOG | `zepygui/log.py`, `zepygui/static/client.js` | `tests/test_log.py`, `tests/test_native.py` |
+| REQ-VAL | `zepygui/forms.py`, `zepygui/ui.py` | `tests/test_forms.py`, `tests/test_native.py` |
 
 ## 7. Known gaps
 

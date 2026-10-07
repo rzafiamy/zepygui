@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import os
 import random
 
-from pygui import App, State, ui
+from zepygui import App, State, ui
 
 app = App("Northwind", width=1240, height=820, accent="#6366f1")
 
@@ -210,7 +210,7 @@ def settings_page():
             ),
             "About": lambda: ui.card(ui.markdown("""
                 ### Northwind
-                Built with **PyGUI**, a native desktop UI framework in pure Python.
+                Built with **ZePyGUI**, a native desktop UI framework in pure Python.
 
                 - No dependencies, just the standard library
                 - Reactive state: change a value and the UI updates

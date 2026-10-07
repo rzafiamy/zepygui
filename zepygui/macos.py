@@ -294,12 +294,12 @@ class MacWindow:
             if img:
                 msg(self.app, "setApplicationIconImage:", img)
 
-        delegate_cls = _make_class("PyGUIDelegate", {
+        delegate_cls = _make_class("ZePyGUIDelegate", {
             "windowWillClose:": (_VOID3, _on_window_close, b"v@:@"),
             "applicationShouldTerminate:": (_ULONG3, _should_terminate, b"Q@:@"),
             "applicationShouldTerminateAfterLastWindowClosed:": (_BOOL3, _last_window_closed, b"c@:@"),
         }, protocols=("NSWindowDelegate", "NSApplicationDelegate"))
-        bridge_cls = _make_class("PyGUIBridge", {
+        bridge_cls = _make_class("ZePyGUIBridge", {
             "userContentController:didReceiveScriptMessage:": (_VOID4, _on_script_message, b"v@:@@"),
         }, protocols=("WKScriptMessageHandler",))
         delegate = new_instance(delegate_cls)
@@ -318,7 +318,7 @@ class MacWindow:
 
         config = new("WKWebViewConfiguration")
         controller = msg(config, "userContentController")
-        msg(controller, "addScriptMessageHandler:name:", new_instance(bridge_cls), nsstr("pygui"))
+        msg(controller, "addScriptMessageHandler:name:", new_instance(bridge_cls), nsstr("zepygui"))
         prefs = msg(config, "preferences")
         msg(prefs, "setValue:forKey:", nsbool(True), nsstr("allowFileAccessFromFileURLs"))
         if self.debug:
@@ -335,7 +335,7 @@ class MacWindow:
 
         msg(self.window, "center")
         slug = re.sub(r"[^A-Za-z0-9]+", "-", self.title)
-        msg(self.window, "setFrameAutosaveName:", nsstr(f"PyGUI-{slug}"))
+        msg(self.window, "setFrameAutosaveName:", nsstr(f"ZePyGUI-{slug}"))
         msg(self.window, "makeKeyAndOrderFront:", None)
         msg(self.app, "activateIgnoringOtherApps:", True, argtypes=[c_bool])
         try:

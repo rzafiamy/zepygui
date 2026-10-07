@@ -12,7 +12,7 @@ _runtime = {"app": None}
 _IMMUTABLE = (int, float, complex, str, bool, bytes, tuple, frozenset, type(None))
 # The window an asyncio task belongs to. Threads use _local.session; coroutines all share
 # one event-loop thread, so they carry their window in a context variable instead.
-_session_var = contextvars.ContextVar("pygui_session", default=None)
+_session_var = contextvars.ContextVar("zepygui_session", default=None)
 
 
 def current_session():
@@ -190,6 +190,6 @@ def invoke(fn, *args):
 def spawn(fn, *args):
     """Run ``fn(*args)`` (sync or async) in the background, keeping the current window.
 
-    Kept for compatibility; returns a :class:`pygui.tasks.Task`."""
+    Kept for compatibility; returns a :class:`zepygui.tasks.Task`."""
     from .tasks import start
     return start(fn, *args)

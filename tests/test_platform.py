@@ -14,10 +14,10 @@ from unittest import mock
 
 from helpers import LiveServer, find, handler_id, tag, text_of, ws_connect, ws_next, ws_recv, ws_send
 
-from pygui import App, ui
-from pygui import desktop
-from pygui.app import Session
-from pygui.reloader import _snapshot
+from zepygui import App, ui
+from zepygui import desktop
+from zepygui.app import Session
+from zepygui.reloader import _snapshot
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -140,7 +140,7 @@ class SecurityUnitTests(unittest.TestCase):
         """covers: REQ-SEC-007"""
         app = App("t")
         session = Session(app, "u")
-        with mock.patch("pygui.app.webbrowser.open") as opener:
+        with mock.patch("zepygui.app.webbrowser.open") as opener:
             for url in ("javascript:alert(1)", "file:///etc/passwd", "https://ok.example", "mailto:a@b.c"):
                 app._dispatch(session, {"type": "open_url", "url": url})
             time.sleep(0.2)
@@ -175,7 +175,7 @@ class DevToolTests(unittest.TestCase):
 
     def test_cli_creates_a_runnable_app_and_refuses_to_overwrite(self):
         """covers: REQ-DEV-004"""
-        from pygui.__main__ import main
+        from zepygui.__main__ import main
         target = Path(tempfile.mkdtemp()) / "my-tool"
         with mock.patch("builtins.print"):
             main(["new", str(target)])
@@ -196,7 +196,7 @@ class PackagingTests(unittest.TestCase):
         """covers: REQ-PKG-001"""
         if hasattr(sys, "stdlib_module_names"):
             self.STDLIB = set(sys.stdlib_module_names)
-        for path in (ROOT / "pygui").glob("*.py"):
+        for path in (ROOT / "zepygui").glob("*.py"):
             for node in ast.walk(ast.parse(path.read_text())):
                 names = []
                 if isinstance(node, ast.Import):
@@ -209,9 +209,9 @@ class PackagingTests(unittest.TestCase):
     def test_static_assets_are_package_data(self):
         """covers: REQ-PKG-003"""
         config = (ROOT / "pyproject.toml").read_text()
-        self.assertIn('"pygui.static" = ["*.js", "*.css"]', config)
+        self.assertIn('"zepygui.static" = ["*.js", "*.css"]', config)
         for name in ("client.js", "style.css"):
-            self.assertTrue((ROOT / "pygui" / "static" / name).is_file())
+            self.assertTrue((ROOT / "zepygui" / "static" / name).is_file())
 
 
 if __name__ == "__main__":

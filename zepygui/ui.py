@@ -1,4 +1,4 @@
-"""PyGUI component library.
+"""ZePyGUI component library.
 
 Every function returns an :class:`Element`. Build trees by nesting calls::
 
@@ -294,7 +294,7 @@ def use_state(default=None):
 
 
 def use_form(fields=None, **kw):
-    """A :class:`~pygui.forms.Form` local to this page or component (kept across renders).
+    """A :class:`~zepygui.forms.Form` local to this page or component (kept across renders).
 
         form = ui.use_form(email=("", [rules.required(), rules.email()]), remember=False)
         ui.input(form.email, label="Email")
@@ -303,7 +303,7 @@ def use_form(fields=None, **kw):
 
 
 def use_field(default=None, *rules):
-    """A single validated :class:`~pygui.forms.Field` local to this page or component.
+    """A single validated :class:`~zepygui.forms.Field` local to this page or component.
 
         name = ui.use_field("", rules.required(), rules.max_length(40))
         ui.input(name, label="Name")
@@ -1071,7 +1071,7 @@ def form(*children, on_submit=None, gap=4, cls=None, style=None, **kw):
     """Form. ``on_submit(data)`` receives a dict of named fields (``ui.input(name="email")``).
 
     The browser's own validation popups are turned off (``novalidate``) so that errors from
-    :mod:`pygui.rules` are the only ones shown, in the app's style.
+    :mod:`zepygui.rules` are the only ones shown, in the app's style.
     """
     kw.setdefault("novalidate", True)
     f = Element("form", *children, cls=_c("pg-form", cls), style=_merge({"gap": _sp(gap)}, style), **kw)
@@ -1359,7 +1359,7 @@ def virtual_list(items, render, *, item_height=40, height=480, empty=None, key=N
 
 
 def log_view(log, *, height=360, follow=True, filter=None, numbers=False, key=None, cls=None, style=None):
-    """A console for a :class:`pygui.Log`: streams new lines, draws only visible ones.
+    """A console for a :class:`zepygui.Log`: streams new lines, draws only visible ones.
 
     ``follow``  stick to the newest line while the view is scrolled to the bottom
     ``filter``  a string or ``State``: show only lines containing it (case-insensitive)
@@ -1679,7 +1679,7 @@ def copy(content, notify=True):
 def background(fn, *args):
     """Run slow work without freezing the window: ``ui.background(download, url)``.
 
-    Shorthand for :func:`task` without callbacks; returns the :class:`~pygui.tasks.Task`."""
+    Shorthand for :func:`task` without callbacks; returns the :class:`~zepygui.tasks.Task`."""
     return spawn(fn, *args)
 
 

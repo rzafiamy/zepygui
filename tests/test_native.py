@@ -1,6 +1,6 @@
 """Native macOS window (REQ-WIN) and client DOM patching (REQ-RND) in a real window.
 
-These open windows on screen, so they are opt-in:  PYGUI_GUI_TESTS=1 python3 -m unittest test_native
+These open windows on screen, so they are opt-in:  ZEPYGUI_GUI_TESTS=1 python3 -m unittest test_native
 """
 import json
 import os
@@ -10,7 +10,7 @@ import sys
 import unittest
 
 DRIVER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "native_driver.py")
-ENABLED = platform.system() == "Darwin" and os.environ.get("PYGUI_GUI_TESTS") == "1"
+ENABLED = platform.system() == "Darwin" and os.environ.get("ZEPYGUI_GUI_TESTS") == "1"
 
 
 def run_scenario(name):
@@ -24,7 +24,7 @@ def run_scenario(name):
     raise AssertionError(f"no result from scenario {name!r}:\n{proc.stdout}\n{proc.stderr}")
 
 
-@unittest.skipUnless(ENABLED, "set PYGUI_GUI_TESTS=1 on macOS to run native window tests")
+@unittest.skipUnless(ENABLED, "set ZEPYGUI_GUI_TESTS=1 on macOS to run native window tests")
 class NativeWindowTests(unittest.TestCase):
     def test_closing_the_window_returns_from_run_after_shutdown_hooks(self):
         """covers: REQ-WIN-001, REQ-WIN-004"""

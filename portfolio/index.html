@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>PyGUI Sticker Book</title>
+<title>ZePyGUI Sticker Book</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -295,9 +295,9 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; font-weight
 
 <header class="top">
   <div class="top-in">
-    <a class="brand" href="#intro" aria-label="PyGUI home">
+    <a class="brand" href="#intro" aria-label="ZePyGUI home">
       <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="6" width="30" height="27" rx="13" fill="var(--mint)" stroke="var(--edge)" stroke-width="2.5"/><circle cx="15" cy="18" r="2.6" fill="var(--edge)"/><circle cx="25" cy="18" r="2.6" fill="var(--edge)"/><ellipse cx="11.5" cy="23" rx="3" ry="2" fill="var(--pink)" opacity=".7"/><ellipse cx="28.5" cy="23" rx="3" ry="2" fill="var(--pink)" opacity=".7"/></svg>
-      PyGUI
+      ZePyGUI
     </a>
     <nav class="chips" aria-label="Sections">
       <a href="#quick">Hello</a><a href="#arch">Architecture</a><a href="#modules">Modules</a><a href="#concepts">Concepts</a>
@@ -306,7 +306,7 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; font-weight
       <a href="#theming">Theming</a><a href="#security">Security</a><a href="#devx">Dev tools</a><a href="#quality">Quality</a><a href="#perf">Performance</a><a href="#roadmap">Roadmap</a>
     </nav>
     <div class="top-links">
-      <a href="https://github.com/rzafiamy/pygui" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg><span>GitHub</span></a>
+      <a href="https://github.com/rzafiamy/zepygui" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg><span>GitHub</span></a>
       <a href="https://pypi.org/project/zepygui/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>PyPI</span></a>
     </div>
   </div>
@@ -343,15 +343,15 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; font-weight
     <!-- HERO -->
     <section id="intro" class="hero">
       <div>
-        <div class="kana">パイ・ジー・ユー・アイ · v0.1.0</div>
-        <h1><span class="py">Py</span>GUI</h1>
+        <div class="kana">ゼ・パイ・ジー・ユー・アイ · v0.1.0</div>
+        <h1>Ze<span class="py">Py</span>GUI</h1>
         <p class="lead">Beautiful native desktop apps in pure Python, with zero dependencies. A developer's sticker book of how it all fits together.</p>
         <div class="install">
           <code id="pip-cmd">pip install zepygui</code>
           <button class="copy-btn" id="copy-pip" type="button">Copy</button>
         </div>
         <div class="links">
-          <a href="https://github.com/rzafiamy/pygui" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>github.com/rzafiamy/pygui</a>
+          <a href="https://github.com/rzafiamy/zepygui" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>github.com/rzafiamy/zepygui</a>
           <a href="https://pypi.org/project/zepygui/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>pypi.org/project/zepygui</a>
           <a href="https://github.com/rzafiamy" target="_blank" rel="noopener">@rzafiamy</a>
         </div>
@@ -397,7 +397,7 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; font-weight
       <div class="duo">
         <div>
           <span class="code-tag">hello.py</span>
-<pre class="code"><span class="k">from</span> pygui <span class="k">import</span> App, State, ui
+<pre class="code"><span class="k">from</span> zepygui <span class="k">import</span> App, State, ui
 
 app = <span class="f">App</span>(<span class="s">"Hello"</span>)
 count = <span class="f">State</span>(<span class="s">0</span>)
@@ -417,7 +417,7 @@ app.<span class="f">run</span>()</pre>
 python3 -m pip install -e .
 
 <span class="c"># scaffold an app with sidebar, pages, theme toggle</span>
-python3 -m pygui new myapp
+python3 -m zepygui new myapp
 python3 myapp/app.py
 
 <span class="c"># or run the examples straight from the repo</span>
@@ -515,7 +515,7 @@ app.<span class="f">run</span>(mode=<span class="s">"browser"</span>)     <span 
       </div>
       <div class="duo">
         <div class="chart-card" id="loc-chart">
-          <div><h3>Lines per file</h3><div class="sub">pygui/ package, counted with wc -l · hover a bar</div></div>
+          <div><h3>Lines per file</h3><div class="sub">zepygui/ package, counted with wc -l · hover a bar</div></div>
         </div>
         <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));">
           <div class="card c-mint"><h3><span class="dot"></span>app.py</h3><p>App, routing, Session, Renderer, both run loops.</p></div>
@@ -525,7 +525,7 @@ app.<span class="f">run</span>(mode=<span class="s">"browser"</span>)     <span 
           <div class="card c-butter"><h3><span class="dot"></span>server.py · window.py</h3><p>Stdlib HTTP + WebSocket fallback, Chromium app-window launcher.</p></div>
           <div class="card c-mint"><h3><span class="dot"></span>static/</h3><p>client.js (DOM patching, events) and style.css (design system).</p></div>
           <div class="card c-pink"><h3><span class="dot"></span>desktop.py</h3><p>Dialogs, notifications, open URL/path via osascript, PowerShell, zenity.</p></div>
-          <div class="card c-lav"><h3><span class="dot"></span>reloader.py · __main__.py</h3><p>Restart-on-save supervisor; <code>pygui new</code> scaffolder.</p></div>
+          <div class="card c-lav"><h3><span class="dot"></span>reloader.py · __main__.py</h3><p>Restart-on-save supervisor; <code>zepygui new</code> scaffolder.</p></div>
         </div>
       </div>
     </section>
@@ -810,7 +810,7 @@ ui.<span class="f">card</span>(
       <div class="sec-head">
         <div class="eyebrow">10 · Transports <span class="face">✈ (｡･ω･｡)</span></div>
         <h2>Same API, two pipes</h2>
-        <p>The client runtime detects which one it has (<code>window.webkit.messageHandlers.pygui</code>) and the app code never knows the difference.</p>
+        <p>The client runtime detects which one it has (<code>window.webkit.messageHandlers.zepygui</code>) and the app code never knows the difference.</p>
       </div>
       <div class="lanes">
         <div class="lane" style="--c: var(--mint)">
@@ -819,7 +819,7 @@ ui.<span class="f">card</span>(
           <ol class="steps">
             <li><span><b>ctypes</b> loads libobjc and calls <code>objc_msgSend</code> to build the window, web view, menu bar and delegate classes at runtime.</span></li>
             <li><span>The page is written to a temp <code>index.html</code> with CSS and JS inlined; <code>app.static</code> folders are symlinked beside it.</span></li>
-            <li><span>JS → Python: <code>webkit.messageHandlers.pygui.postMessage(json)</code> reaches <code>_on_script_message</code>.</span></li>
+            <li><span>JS → Python: <code>webkit.messageHandlers.zepygui.postMessage(json)</code> reaches <code>_on_script_message</code>.</span></li>
             <li><span>Python → JS: the worker queues a call and <code>dispatch_async_f</code> runs <code>evaluateJavaScript("__pg_recv(…)")</code> on the main thread.</span></li>
             <li><span>Routing uses the URL hash. External links go to <code>open_url</code>, which only accepts http, https and mailto.</span></li>
           </ol>
@@ -968,8 +968,8 @@ app.<span class="f">add_css</span>(<span class="s">".hero { background: var(--ac
       <div class="grid">
         <div class="card c-mint"><h3><span class="dot"></span>reload=True</h3><p>A parent process polls file mtimes every 0.5&nbsp;s, ignoring hidden, venv, <code>__pycache__</code> and <code>node_modules</code>, and restarts the child. A crash waits for your next save.</p></div>
         <div class="card c-lav"><h3><span class="dot"></span>debug=True</h3><p>Turns on the WebKit inspector: right-click, Inspect Element. Or use <code>mode="browser"</code> for full dev tools.</p></div>
-        <div class="card c-pink"><h3><span class="dot"></span>pygui new</h3><p>Scaffolds <code>app.py</code> with a sidebar layout, two pages and a theme toggle; refuses to overwrite.</p></div>
-        <div class="card c-butter"><h3><span class="dot"></span>@app.expose</h3><p><code>await pygui.call("add", 2, 3)</code> from your own JS; results or errors come back as a promise.</p></div>
+        <div class="card c-pink"><h3><span class="dot"></span>zepygui new</h3><p>Scaffolds <code>app.py</code> with a sidebar layout, two pages and a theme toggle; refuses to overwrite.</p></div>
+        <div class="card c-butter"><h3><span class="dot"></span>@app.expose</h3><p><code>await zepygui.call("add", 2, 3)</code> from your own JS; results or errors come back as a promise.</p></div>
         <div class="card c-sky"><h3><span class="dot"></span>@app.timer(1.0)</h3><p>Runs periodically while the app runs. Set a State inside and every open window updates.</p></div>
         <div class="card c-mint"><h3><span class="dot"></span>Lifecycle hooks</h3><p><code>@app.on_startup</code> and <code>@app.on_shutdown</code>; closing the window makes <code>run()</code> return.</p></div>
       </div>
@@ -1005,7 +1005,7 @@ app.<span class="f">add_css</span>(<span class="s">".hero { background: var(--ac
 python3 -m unittest discover -s tests
 
 <span class="c"># + real native windows (macOS)</span>
-PYGUI_GUI_TESTS=1 python3 -m unittest discover -s tests
+ZEPYGUI_GUI_TESTS=1 python3 -m unittest discover -s tests
 
 <span class="c"># rebuild specs/matrix.md; fails on any gap</span>
 python3 tests/matrix.py</pre>
@@ -1159,8 +1159,8 @@ ui.<span class="f">button</span>(<span class="s">"Cancel"</span>, job.cancel)</p
 
     <footer>
       <svg viewBox="0 0 40 40" width="36" height="36" aria-hidden="true"><rect x="5" y="6" width="30" height="27" rx="13" fill="var(--mint)" stroke="var(--edge)" stroke-width="2.5"/><circle cx="15" cy="18" r="2.6" fill="var(--edge)"/><circle cx="25" cy="18" r="2.6" fill="var(--edge)"/><ellipse cx="11.5" cy="23" rx="3" ry="2" fill="var(--pink)" opacity=".7"/><ellipse cx="28.5" cy="23" rx="3" ry="2" fill="var(--pink)" opacity=".7"/></svg>
-      <span>PyGUI 0.1.0 · MIT · © 2026 <a href="https://github.com/rzafiamy" target="_blank" rel="noopener">rzafiamy</a> · icons adapted from Lucide (ISC) and Feather (MIT)</span>
-      <span><a href="https://github.com/rzafiamy/pygui" target="_blank" rel="noopener">Source on GitHub</a> · <a href="https://pypi.org/project/zepygui/" target="_blank" rel="noopener">zepygui on PyPI</a> · <a href="https://github.com/rzafiamy/pygui/issues" target="_blank" rel="noopener">Report an issue</a></span>
+      <span>ZePyGUI 0.1.0 · MIT · © 2026 <a href="https://github.com/rzafiamy" target="_blank" rel="noopener">rzafiamy</a> · icons adapted from Lucide (ISC) and Feather (MIT)</span>
+      <span><a href="https://github.com/rzafiamy/zepygui" target="_blank" rel="noopener">Source on GitHub</a> · <a href="https://pypi.org/project/zepygui/" target="_blank" rel="noopener">zepygui on PyPI</a> · <a href="https://github.com/rzafiamy/zepygui/issues" target="_blank" rel="noopener">Report an issue</a></span>
       <span>またね! · see you in the next window</span>
     </footer>
   </main>

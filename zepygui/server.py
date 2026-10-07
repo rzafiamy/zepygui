@@ -112,13 +112,13 @@ class Server(ThreadingHTTPServer):
 
 
 def make_server(app, host, port):
-    handler = type("PyGUIHandler", (_Handler,), {"app": app})
+    handler = type("ZePyGUIHandler", (_Handler,), {"app": app})
     return Server((host, port), handler)
 
 
 class _Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
-    server_version = "PyGUI"
+    server_version = "ZePyGUI"
     app = None
 
     def log_message(self, fmt, *args):
@@ -219,7 +219,7 @@ class _Handler(BaseHTTPRequestHandler):
             ws.close()
 
 
-_FORBIDDEN = """<!doctype html><meta charset="utf-8"><title>PyGUI</title>
+_FORBIDDEN = """<!doctype html><meta charset="utf-8"><title>ZePyGUI</title>
 <body style="font:15px system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#0b0d12;color:#a3a9b8">
 <div style="text-align:center"><h2 style="color:#e8eaf0;margin:0 0 8px">This app is private</h2>
 <p>Open it from the window launched by its Python script.</p></div></body>"""

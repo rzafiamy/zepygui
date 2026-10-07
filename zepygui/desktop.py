@@ -45,7 +45,7 @@ def _linux(args):
         if shutil.which(tool):
             r = subprocess.run([tool] + args[tool], capture_output=True, text=True)
             return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
-    print("[pygui] install zenity or kdialog for native file dialogs")
+    print("[zepygui] install zenity or kdialog for native file dialogs")
     return None
 
 

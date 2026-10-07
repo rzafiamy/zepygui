@@ -3,7 +3,7 @@ import unittest
 
 from helpers import Harness, find, handler_id, has_class, tag, text_of
 
-from pygui import App, Log, State, ui
+from zepygui import App, Log, State, ui
 
 
 def render(page_fn, **kw):

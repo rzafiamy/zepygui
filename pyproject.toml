@@ -9,7 +9,7 @@ description = "Beautiful native desktop apps in pure Python, with no dependencie
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
-# the icon artwork in pygui/ui.py is adapted from Lucide (ISC) and Feather (MIT): their notices ship too
+# the icon artwork in zepygui/ui.py is adapted from Lucide (ISC) and Feather (MIT): their notices ship too
 license-files = ["LICENSE", "CREDITS.md", "licences/*.txt"]
 authors = [{ name = "rzafiamy" }]
 keywords = ["gui", "desktop", "webview", "native", "ui", "tauri", "reactive"]
@@ -29,12 +29,12 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/rzafiamy/pygui"
-Repository = "https://github.com/rzafiamy/pygui"
-Issues = "https://github.com/rzafiamy/pygui/issues"
+Homepage = "https://github.com/rzafiamy/zepygui"
+Repository = "https://github.com/rzafiamy/zepygui"
+Issues = "https://github.com/rzafiamy/zepygui/issues"
 
 [tool.setuptools]
-packages = ["pygui", "pygui.static"]  # static/ holds the client runtime and stylesheet (data only)
+packages = ["zepygui", "zepygui.static"]  # static/ holds the client runtime and stylesheet (data only)
 
 [tool.setuptools.package-data]
-"pygui.static" = ["*.js", "*.css"]
+"zepygui.static" = ["*.js", "*.css"]

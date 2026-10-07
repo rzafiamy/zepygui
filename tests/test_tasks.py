@@ -8,8 +8,8 @@ import unittest
 
 from helpers import Harness, find, tag
 
-from pygui import App, CommandError, ui
-from pygui.state import current_session
+from zepygui import App, CommandError, ui
+from zepygui.state import current_session
 
 
 def render(page):
@@ -24,7 +24,7 @@ def square(x):  # top level: process pools pickle functions by name
 
 
 def run_app_in_child(q):
-    from pygui import App as ChildApp
+    from zepygui import App as ChildApp
     q.put(ChildApp("child").run())
 
 
@@ -180,7 +180,7 @@ class TaskTests(unittest.TestCase):
         for i, b in enumerate(buttons):
             h.event(b["e"]["click"][0]["h"], seq=i + 1, expect_render=False)
         self.assertTrue(done.wait(3))
-        self.assertEqual({s[0] for s in seen}, {"pygui-asyncio"})
+        self.assertEqual({s[0] for s in seen}, {"zepygui-asyncio"})
         self.assertEqual(len({s[2] for s in seen}), 1)
         self.assertTrue(all(s[1] is h.session for s in seen))
         h.close()

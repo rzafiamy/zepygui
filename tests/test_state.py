@@ -5,8 +5,8 @@ import unittest
 
 from helpers import Harness, text_of
 
-from pygui import App, State, ui
-from pygui.state import _local
+from zepygui import App, State, ui
+from zepygui.state import _local
 
 
 class Subscriber:

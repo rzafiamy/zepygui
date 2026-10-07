@@ -6,7 +6,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))  # run without installing
 
-from pygui import App, State, ui
+from zepygui import App, State, ui
 
 app = App("Files", width=1100, height=780, accent="#f59e0b")
 

@@ -302,7 +302,7 @@ def _warn_if_slow(handler, elapsed):
     if where in _warned_slow:
         return
     _warned_slow.add(where)
-    print(f"[pygui] a handler blocked its window for {elapsed * 1000:.0f} ms ({where}). "
+    print(f"[zepygui] a handler blocked its window for {elapsed * 1000:.0f} ms ({where}). "
           f"Run slow work with ui.task(fn, ...) to keep the window responsive.", file=sys.stderr)
 
 
@@ -331,7 +331,7 @@ class Session:
         self._out = None
         self._rendering = False
         self._title = None
-        self.worker = threading.Thread(target=self._loop, name=f"pygui-window-{sid}", daemon=True)
+        self.worker = threading.Thread(target=self._loop, name=f"zepygui-window-{sid}", daemon=True)
         self.worker.start()
 
     # -- transport -----------------------------------------------------------
@@ -529,7 +529,7 @@ class App:
         app.run()
     """
 
-    def __init__(self, title="PyGUI App", *, theme="auto", accent="#6366f1", width=1100, height=760,
+    def __init__(self, title="ZePyGUI App", *, theme="auto", accent="#6366f1", width=1100, height=760,
                  min_size=(480, 360), icon=None, css=None, head=None, radius=10, font=None):
         self.title = title
         self.theme = theme
@@ -586,7 +586,7 @@ class App:
         return deco(fn) if fn is not None else deco
 
     def expose(self, fn=None, *, name=None):
-        """Make a Python function callable from JavaScript: ``await pygui.call("name", ...)``."""
+        """Make a Python function callable from JavaScript: ``await zepygui.call("name", ...)``."""
         def deco(f):
             self._exposed[name or f.__name__] = f
             return f
@@ -697,7 +697,7 @@ class App:
                     invoke(fn)
                 except Exception:
                     traceback.print_exc()
-        threading.Thread(target=loop, daemon=True, name="pygui-timer").start()
+        threading.Thread(target=loop, daemon=True, name="zepygui-timer").start()
 
     def _startup_hooks(self):
         _runtime["app"] = self
@@ -749,7 +749,7 @@ class App:
             # under spawn; it must not open a second window.
             return None
         self.debug = debug
-        if reload and not os.environ.get("PYGUI_CHILD"):
+        if reload and not os.environ.get("ZEPYGUI_CHILD"):
             from .reloader import run_with_reloader
             return run_with_reloader()
         if mode == "auto":
@@ -758,7 +758,7 @@ class App:
             try:
                 from . import macos  # noqa: F401
             except (OSError, AttributeError, ImportError) as exc:
-                print(f"[pygui] native window unavailable ({exc}); using an app window instead")
+                print(f"[zepygui] native window unavailable ({exc}); using an app window instead")
                 mode = "window"
         if mode == "native":
             return self._run_native()
@@ -768,7 +768,7 @@ class App:
     def _run_native(self):
         from .macos import MacWindow
 
-        workdir = Path(tempfile.mkdtemp(prefix="pygui-"))
+        workdir = Path(tempfile.mkdtemp(prefix="zepygui-"))
         for prefix, directory in self._statics.items():
             link = workdir / prefix.strip("/")
             link.parent.mkdir(parents=True, exist_ok=True)
@@ -856,7 +856,7 @@ class App:
         from .window import open_window
 
         self.token = secrets.token_urlsafe(18)
-        if os.environ.get("PYGUI_CHILD"):
+        if os.environ.get("ZEPYGUI_CHILD"):
             # the reloader stops us with SIGTERM: exit through `finally` so the window closes too
             signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
         self._server = make_server(self, host, port)
@@ -867,12 +867,12 @@ class App:
         if mode == "window":
             self._browser = open_window(url, self.title, self.width, self.height)
             if self._browser is None:
-                print("[pygui] no Edge/Chrome/Chromium found; opening your default browser instead")
+                print("[zepygui] no Edge/Chrome/Chromium found; opening your default browser instead")
                 webbrowser.open(url)
         else:
             webbrowser.open(url)
         threading.Thread(target=self._reaper, args=(mode, launched_at), daemon=True).start()
-        print(f"[pygui] {self.title} is running (Ctrl+C to quit)")
+        print(f"[zepygui] {self.title} is running (Ctrl+C to quit)")
         try:
             self._server.serve_forever(poll_interval=0.25)
         except (KeyboardInterrupt, SystemExit):

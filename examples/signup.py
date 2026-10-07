@@ -5,7 +5,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))  # run without installing
 
-from pygui import App, State, ValidationError, rules, ui
+from zepygui import App, State, ValidationError, rules, ui
 
 app = App("Sign up", width=560, height=820, accent="#10b981")
 

@@ -8,9 +8,9 @@ import unittest
 
 from helpers import Harness, find, find_all, has_class, tag, text_of
 
-from pygui import App, State, ui
-from pygui.app import Renderer, Session
-from pygui.ui import Element
+from zepygui import App, State, ui
+from zepygui.app import Renderer, Session
+from zepygui.ui import Element
 
 
 def render(page, **kw):

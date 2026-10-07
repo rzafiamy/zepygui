@@ -1,4 +1,4 @@
-"""Performance benchmarks for the PyGUI runtime (headless, no window).
+"""Performance benchmarks for the ZePyGUI runtime (headless, no window).
 
     python3 bench/bench.py            # all scenarios
     python3 bench/bench.py render     # only scenarios whose name contains "render"
@@ -15,8 +15,8 @@ import tracemalloc
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-from pygui import App, Log, State, ui  # noqa: E402
-from pygui.app import Renderer, Session  # noqa: E402
+from zepygui import App, Log, State, ui  # noqa: E402
+from zepygui.app import Renderer, Session  # noqa: E402
 
 SCENARIOS = []
 

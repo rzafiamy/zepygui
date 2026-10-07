@@ -1,9 +1,9 @@
 """Open the UI in a chrome-less native window using a Chromium engine already on the system.
 
-Like Tauri relies on the OS webview, PyGUI reuses an installed Chromium-based browser
+Like Tauri relies on the OS webview, ZePyGUI reuses an installed Chromium-based browser
 (Edge ships with Windows; Chrome/Brave/Chromium elsewhere) in ``--app`` mode: no tabs,
 no address bar, its own window and dock/taskbar entry, and a private profile per app.
-Set ``PYGUI_BROWSER=/path/to/browser`` to choose one explicitly.
+Set ``ZEPYGUI_BROWSER=/path/to/browser`` to choose one explicitly.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 def find_browser():
-    custom = os.environ.get("PYGUI_BROWSER")
+    custom = os.environ.get("ZEPYGUI_BROWSER")
     if custom:
         return custom if os.path.exists(custom) else shutil.which(custom)
     system = platform.system()
@@ -48,11 +48,11 @@ def _profile_dir(title):
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "app"
     system = platform.system()
     if system == "Darwin":
-        base = Path.home() / "Library" / "Caches" / "pygui"
+        base = Path.home() / "Library" / "Caches" / "zepygui"
     elif system == "Windows":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "pygui"
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "zepygui"
     else:
-        base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "pygui"
+        base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "zepygui"
     path = base / "profiles" / slug
     path.mkdir(parents=True, exist_ok=True)
     return path

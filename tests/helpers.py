@@ -11,7 +11,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-from pygui.app import Session  # noqa: E402
+from zepygui.app import Session  # noqa: E402
 
 
 class FakeWindow:
@@ -175,10 +175,10 @@ def ws_next(sock, kind, timeout=3.0):
 
 
 class LiveServer:
-    """A real PyGUI HTTP/WebSocket server on loopback, for transport and security tests."""
+    """A real ZePyGUI HTTP/WebSocket server on loopback, for transport and security tests."""
 
     def __init__(self, app, token="secret-token"):
-        from pygui.server import make_server
+        from zepygui.server import make_server
         self.app = app
         app.token = token
         app._running = True
