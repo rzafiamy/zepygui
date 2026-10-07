@@ -1,0 +1,115 @@
+# Traceability matrix
+
+**Generated — do not edit.** `python3 tests/matrix.py` rebuilds it from the tests
+themselves: the `covers:` line of each test in `tests/test_*.py`, and the rows of
+[`manual.md`](manual.md). Requirements are defined in [`specification.md`](specification.md).
+
+`auto` tests run headless with `python3 -m unittest discover -s tests`.
+`auto (gui)` tests open a real native window and run on macOS with
+`PYGUI_GUI_TESTS=1`.
+
+Requirements: **99** · covered by an automated test: **77**
+(of which GUI only: **7**) · manual only: **22**
+· uncovered: **0**
+
+| Requirement | Verified by | Tests |
+|---|---|---|
+| **REQ-STA-001** Setting a `State` to a new value MUST notify every window subscribed to it. | auto | `new value notifies subscribers` (tests/test_state.py) |
+| **REQ-STA-002** Setting a `State` to an immutable value equal to its current value MUST NOT notify subscribers. | auto | `equal immutable value does not notify` (tests/test_state.py) |
+| **REQ-STA-003** Reading `State.value` during a render MUST subscribe the rendering window. | auto | `reading subscribes only during a render` (tests/test_state.py) |
+| **REQ-STA-004** Reading `State.value` outside a render MUST NOT subscribe anything. | auto | `reading subscribes only during a render` (tests/test_state.py) |
+| **REQ-STA-005** The list helpers `append`, `extend`, `insert`, `remove`, `pop`, `clear` and item assignment or deletion MUST notify subscribers after mutating. | auto | `list helpers notify after mutating` (tests/test_state.py) |
+| **REQ-STA-006** `State.notify()` MUST re-render subscribers without changing the value. | auto | `notify rerenders without changing the value` (tests/test_state.py) |
+| **REQ-STA-007** A `State` changed from a thread other than a window's worker MUST re-render the subscribed windows. | auto | `change from a background thread rerenders the window` (tests/test_state.py) |
+| **REQ-STA-008** A subscription MUST NOT keep a window's session alive. | auto | `subscriptions do not keep windows alive` (tests/test_state.py) |
+| **REQ-TRE-001** A tree built with nested calls and the same tree built with `with` blocks MUST serialise identically. | auto | `nested calls and with blocks build the same tree` (tests/test_tree.py) |
+| **REQ-TRE-002** A keyword `on_<event>` given a callable MUST register a handler for the DOM event `<event>`. | auto | `on keywords register dom events` (tests/test_tree.py) |
+| **REQ-TRE-003** Any other keyword MUST become an HTML attribute, with `_` replaced by `-` and one trailing `_` dropped. | auto | `other keywords become attributes` (tests/test_tree.py) |
+| **REQ-TRE-004** A numeric style value MUST be emitted in pixels, except for unitless properties and custom properties. | auto | `numeric styles get px except unitless and custom properties` (tests/test_tree.py) |
+| **REQ-TRE-005** A child that is `None`, `True` or `False` MUST render nothing. | auto | `none and booleans render nothing` (tests/test_tree.py) |
+| **REQ-TRE-006** A `State` used as a child or an attribute MUST render its current value. | auto | `states render their current value` (tests/test_tree.py) |
+| **REQ-TRE-007** An element's `key` MUST be sent to the client. | auto | `keys are sent to the client` (tests/test_tree.py) |
+| **REQ-TRE-008** A fragment MUST render its children without a wrapper element. | auto | `fragments add no wrapper` (tests/test_tree.py) |
+| **REQ-HOK-001** `use_state` MUST return the same `State` for the same page or component position across renders. | auto | `use state survives rerenders` (tests/test_tree.py) |
+| **REQ-HOK-002** Two instances of one component MUST keep independent `use_state` values. | auto | `component instances have independent state` (tests/test_tree.py) |
+| **REQ-HOK-003** `use_state` called outside a render MUST raise `RuntimeError`. | auto | `use state outside a render raises` (tests/test_tree.py) |
+| **REQ-HOK-004** A callable default given to `use_state` MUST be evaluated only when the hook is created. | auto | `callable default is evaluated once` (tests/test_tree.py) |
+| **REQ-HOK-005** The hook state of a component no longer rendered MUST be discarded after that render. | auto | `state of unmounted components is discarded` (tests/test_tree.py) |
+| **REQ-HOK-006** An element passed as an argument to a component MUST NOT also render where it was created. | auto | `elements passed to components do not leak where created` (tests/test_tree.py) |
+| **REQ-RND-001** A render MUST send the complete tree together with the highest event sequence number processed. | auto | `render carries the tree and the acknowledged sequence` (tests/test_runtime.py) |
+| **REQ-RND-002** State changes made while handling one event MUST produce a single render. | auto | `several changes in one handler render once` (tests/test_runtime.py) |
+| **REQ-RND-003** A page that raises MUST render an error view containing the traceback, and the window MUST stay usable. | auto | `a failing page shows its traceback` (tests/test_runtime.py) |
+| **REQ-RND-004** A path matching no page MUST render the not-found page. | auto | `an unknown path shows not found` (tests/test_runtime.py) |
+| **REQ-RND-005** The window title MUST be `<page title> · <app title>` when the page has a title, and the app title otherwise. | auto | `window title combines page and app titles` (tests/test_runtime.py) |
+| **REQ-RND-006** The client MUST reuse a DOM node whose tag and key match the new tree, and keyed children MUST keep their node when reordered. | auto (gui) | `dom nodes are reused and follow their keys` (tests/test_native.py) |
+| **REQ-RND-007** The client MUST NOT overwrite an input's value while that input has an event Python has not yet acknowledged, and MUST apply a value Python changes once it has. | auto (gui) | `fast typing is never overwritten` (tests/test_native.py) |
+| **REQ-RND-008** A newly connected window MUST receive exactly one first render. | auto | `a new window gets exactly one first render` (tests/test_platform.py) |
+| **REQ-EVT-001** A handler MUST be called with an argument only if its signature accepts one. | auto | `handlers get an argument only if they accept one` (tests/test_runtime.py) |
+| **REQ-EVT-002** Input components MUST pass `on_change` a converted value: text as `str`, a number field as `int`/`float`/`None`, a toggle as `bool`, a slider as a number. | auto | `inputs pass converted values` (tests/test_runtime.py) |
+| **REQ-EVT-003** A select MUST pass the original option value, with its original type. | auto | `select returns the original option object` (tests/test_runtime.py) |
+| **REQ-EVT-004** An exception raised by a handler MUST be shown as an error toast and MUST NOT stop the window from processing later events. | auto | `handler errors become toasts and the window continues` (tests/test_runtime.py) |
+| **REQ-EVT-005** An `async` handler MUST run without blocking the window's event queue. | auto | `async handlers do not block the window` (tests/test_runtime.py) |
+| **REQ-EVT-006** A `debounce` delay MUST be sent to the client in the event spec. | auto | `debounce is sent with the event spec` (tests/test_runtime.py) |
+| **REQ-EVT-007** `on_enter` MUST be sent as a keydown handler filtered to the Enter key. | auto | `on enter listens to keydown for enter only` (tests/test_runtime.py) |
+| **REQ-EVT-008** The events of one window MUST be handled in the order they arrive. | auto | `events are processed in arrival order` (tests/test_runtime.py) |
+| **REQ-EVT-009** An event naming a handler absent from the last render MUST be ignored. | auto | `events for unknown handlers are ignored` (tests/test_runtime.py) |
+| **REQ-EVT-010** `ui.form(on_submit=…)` MUST pass a dict of its named fields, with checkboxes as booleans. | manual | `MT-020 Add to a page: `ui.form(ui.input(name="email"), ui.checkbox("Agree", name="agree"), ui.button("Send", submit=True), on_submit=print)`. Run it, type `a@b.c`, leave the box unchecked, press **Send**: the terminal prints `{'email': 'a@b.c', 'agree': False}`. Check the box and send again: `'agree': True`. Confirm the page does not reload.` (specs/manual.md) |
+| **REQ-RTE-001** A static route MUST match its exact path, with or without one trailing slash, and nothing longer. | auto | `static paths match with or without trailing slash` (tests/test_runtime.py) |
+| **REQ-RTE-002** Route parameters typed `int`, `float` or `path` MUST be converted before the page is called. | auto | `typed parameters are converted` (tests/test_runtime.py) |
+| **REQ-RTE-003** A page MUST receive only the route parameters its signature accepts. | auto | `pages receive only parameters they accept` (tests/test_runtime.py) |
+| **REQ-RTE-004** `ui.navigate(path)` MUST send the new path to the client and render the matching page. | auto | `navigate updates the client and renders the target` (tests/test_runtime.py) |
+| **REQ-RTE-005** The query string MUST be available as `session.query`, with repeated keys as lists. | auto | `query string is exposed on the session` (tests/test_runtime.py) |
+| **REQ-RTE-006** A registered layout MUST wrap every page. | auto | `layout wraps every page` (tests/test_runtime.py) |
+| **REQ-CMP-001** Every component exported by `pygui.ui` MUST render with minimal arguments. | auto | `every public component renders` (tests/test_tree.py) |
+| **REQ-CMP-002** `modal` MUST render nothing while its `State` is false. | auto | `modal renders nothing while closed` (tests/test_tree.py) |
+| **REQ-CMP-003** `tabs` MUST render only the active tab's content. | auto | `tabs render only the active tab` (tests/test_tree.py) |
+| **REQ-CMP-004** Clicking a sortable table header MUST cycle the rows through ascending, descending and original order. | auto | `table sorts ascending descending then unsorted` (tests/test_tree.py) |
+| **REQ-CMP-005** A table column `format` function taking two parameters MUST receive the cell value and its row. | auto | `two parameter formatters receive the row` (tests/test_tree.py) |
+| **REQ-CMP-006** `nav_item` MUST mark itself active when the current path equals its target or lies below it. | auto | `nav item is active on its path and below` (tests/test_tree.py) |
+| **REQ-CMP-007** A chart given no data MUST render an empty state. | auto | `charts show an empty state without data` (tests/test_tree.py) |
+| **REQ-CMP-008** An input bound to a `State` MUST update that `State` on each input event. | auto | `bound input updates its state` (tests/test_tree.py) |
+| **REQ-CMP-009** `theme_toggle` MUST show the icon of the theme it switches to. | auto | `theme toggle shows the theme it switches to` (tests/test_tree.py) |
+| **REQ-CMP-010** The copy button of `code_block` MUST copy the block's text to the clipboard. | manual | `MT-021 Add `ui.code_block("print('hi')")` to a page, run it and press the copy icon at the block's top right. Confirm a "Copied to clipboard" toast appears and that pasting into a text editor gives exactly `print('hi')`.` (specs/manual.md) |
+| **REQ-THM-001** `theme="auto"` MUST follow the operating system's appearance at launch. | manual | `MT-010 In System Settings › Appearance choose **Light**, run `examples/todo.py` (theme `auto`): confirm a light UI. Quit, choose **Dark**, run it again: confirm a dark UI. Run this before MT-011 and without touching the theme toggle: a theme chosen with the toggle is remembered and overrides `auto`.` (specs/manual.md) |
+| **REQ-THM-002** `ui.set_theme` MUST send the theme to the window and update `session.theme`. | auto | `set theme reaches the window and the session` (tests/test_runtime.py) |
+| **REQ-THM-003** The `accent` and `radius` settings MUST be applied as the `--accent` and `--radius` CSS variables. | auto | `accent colour becomes the accent variable` (tests/test_runtime.py) |
+| **REQ-THM-004** A theme chosen by the user MUST persist across launches of the same app. | manual | `MT-011 Run the dashboard, switch the theme with the header toggle, quit and run it again. Confirm it reopens in the theme you chose, not the system's.` (specs/manual.md) |
+| **REQ-WIN-001** On macOS, `mode="auto"` MUST show the UI in an NSWindow hosting a WKWebView. | auto (gui) | `closing the window returns from run after shutdown hooks` (tests/test_native.py) |
+| **REQ-WIN-002** The native backend MUST NOT open any network socket. | auto (gui) | `native mode opens no network socket` (tests/test_native.py) |
+| **REQ-WIN-003** The window MUST provide a menu bar whose Undo, Redo, Cut, Copy, Paste and Select All items work with their standard shortcuts in text fields. | manual | `MT-001 Run the dashboard. Open Customers › **Add customer**, type a name in the first field, select it with **⌘A**, cut with **⌘X**, paste it into the email field with **⌘V**, undo with **⌘Z** and redo with **⇧⌘Z**. Copy a table cell's text with **⌘C** and paste it into a field. Confirm every shortcut acts, and that the same items exist in the **Edit** menu.` (specs/manual.md) |
+| **REQ-WIN-004** Closing the window MUST make `app.run()` return after running the shutdown hooks. | auto (gui) | `closing the window returns from run after shutdown hooks` (tests/test_native.py) |
+| **REQ-WIN-005** The title bar and window background MUST follow the active theme. | manual | `MT-002 Run the dashboard in dark mode, then press the theme toggle in the header. Confirm the window's title bar and the area behind the page switch between dark and light together with the page, with no light strip or flash around the content.` (specs/manual.md) |
+| **REQ-WIN-006** The window MUST reopen at its last size and position. | manual | `MT-003 Run the dashboard, move the window to another position and resize it. Close it with the red button, run it again. Confirm it reopens at the same position and size.` (specs/manual.md) |
+| **REQ-WIN-007** An external `http`, `https` or `mailto` link MUST open in the default browser, never inside the window. | manual | `MT-004 Add `ui.link("Docs", href="https://example.com")` to the page of `examples/hello.py`, run it and click the link. Confirm the default browser opens the page and the app window still shows the app. Repeat with `new_tab=True` and with a `mailto:` link (Mail opens).` (specs/manual.md) |
+| **REQ-WIN-008** Ctrl+C in the launching terminal MUST quit the app. | manual | `MT-005 Run `python3 examples/hello.py` from a terminal, then press **Ctrl+C** in that terminal. Confirm the window closes and the shell prompt returns within a second.` (specs/manual.md) |
+| **REQ-WIN-009** An `icon` given to `App` MUST be used as the Dock icon. | manual | `MT-006 Copy any PNG next to `examples/hello.py` as `icon.png`, change the app to `App("Hello", icon="icon.png")` and run it. Confirm the Dock shows that image instead of the Python rocket. **Revert afterwards.**` (specs/manual.md) |
+| **REQ-WIN-010** Files mounted with `app.static` MUST load through relative URLs. | auto (gui) | `static assets load from relative urls` (tests/test_native.py) |
+| **REQ-WIN-011** In-app links MUST navigate without reloading and record the path in the URL hash. | auto (gui) | `links navigate and record the path in the hash` (tests/test_native.py) |
+| **REQ-FBK-001** On Windows and Linux, `mode="auto"` MUST open an installed Chromium-based browser in app mode with a private per-app profile. | manual | `MT-050 **Windows 10/11** with Edge only: run `python examples\dashboard.py`. Confirm a window with no tabs or address bar opens (Edge app mode) and the app works. **Linux** with Chrome or Chromium installed: same check. On both, confirm a profile folder for the app exists (`%LOCALAPPDATA%\pygui\profiles\northwind`, `~/.cache/pygui/profiles/northwind`).` (specs/manual.md) |
+| **REQ-FBK-002** When no Chromium-based browser is found, the app MUST open in the default browser and say so in the terminal. | manual | `MT-051 On a Linux machine with **no** Chromium-based browser (or with `PYGUI_BROWSER=/nonexistent`), run `examples/hello.py`. Confirm the terminal says no Edge/Chrome/Chromium was found and the app opens in the default browser and works.` (specs/manual.md) |
+| **REQ-FBK-003** The server MUST bind to `127.0.0.1` unless told otherwise. | auto | `server binds loopback by default` (tests/test_platform.py) |
+| **REQ-FBK-004** In `window` mode the app MUST shut down about three seconds after its last window disconnects. | manual | `MT-052 On macOS run `examples/hello.py` with `app.run(mode="window")` (Chrome installed). Close the window. Confirm the terminal prompt returns within about five seconds. **Revert afterwards.**` (specs/manual.md) |
+| **REQ-FBK-005** A window reconnecting with the same session id MUST resume its session, hook state included. | auto | `reconnecting window resumes its session` (tests/test_platform.py) |
+| **REQ-FBK-006** A window that reconnects to a restarted app MUST reload itself. | manual | `MT-053 Run `examples/todo.py` with `app.run(mode="browser", reload=True)`. With the tab open, add `ui.text("v2")` to the page and save. Confirm the tab shows "Reconnecting…" briefly, then reloads by itself and shows `v2`. **Revert afterwards.**` (specs/manual.md) |
+| **REQ-SEC-001** A server-backed window MUST require the launch token or its cookie for every page and for the WebSocket; only `/_pg/` assets MAY be served without it. | auto | `pages and websocket require the token` (tests/test_platform.py) |
+| **REQ-SEC-002** A request carrying a valid token MUST receive an `HttpOnly`, `SameSite=Strict` cookie scoped to the port and a redirect to the same URL without the token. | auto | `valid token sets a strict cookie and strips itself` (tests/test_platform.py) |
+| **REQ-SEC-003** Static file serving MUST refuse any path resolving outside its directory. | auto | `static files cannot escape their directory` (tests/test_platform.py) |
+| **REQ-SEC-004** Markdown MUST escape raw HTML and neutralise `javascript:`, `vbscript:` and `data:` URLs. | auto | `markdown escapes html and neutralises script urls` (tests/test_platform.py) |
+| **REQ-SEC-005** Text children MUST be inserted as text nodes, never parsed as HTML. | manual | `MT-022 Add `ui.text("<b>not bold</b> <img src=x onerror=alert(1)>")` to a page and run it. Confirm the text shows literally, with the angle brackets, and no alert or broken image appears.` (specs/manual.md) |
+| **REQ-SEC-006** A WebSocket message larger than 32 MiB MUST close the connection. | auto | `oversized websocket messages close the connection` (tests/test_platform.py) |
+| **REQ-SEC-007** A request from the UI to open a URL MUST be honoured only for `http`, `https` and `mailto` URLs. | auto | `open url accepts only web and mail links` (tests/test_platform.py) |
+| **REQ-DSK-001** `open_file`, `save_file` and `choose_folder` MUST show the system dialog and return `None` when it is cancelled. | manual | `MT-030 In the dashboard, open Files › **Open files…**, pick two files: confirm the table lists both with their sizes. Open it again and press **Cancel**: confirm nothing changes and no error toast appears. Do the same with **Choose folder…** (a toast shows the path; Cancel shows nothing). On the Overview page press **Export**, save `report.csv` to the Desktop: confirm the file exists and holds the customer rows; repeat and Cancel: nothing is written.` (specs/manual.md) |
+| **REQ-DSK-002** Text passed to AppleScript MUST have its quotes and backslashes escaped. | auto | `applescript strings are escaped` (tests/test_platform.py) |
+| **REQ-DSK-003** Text passed to PowerShell MUST have its single quotes escaped. | auto | `powershell strings are escaped` (tests/test_platform.py) |
+| **REQ-DSK-004** `notify` MUST show a system notification on macOS. | manual | `MT-031 On the Overview page press **Export** and save the file. Confirm a macOS notification "Your report has been exported" appears (allow notifications for Script Editor / osascript if macOS asks).` (specs/manual.md) |
+| **REQ-DSK-005** `open_path(path, reveal=True)` MUST select the file in Finder or Explorer. | manual | `MT-032 In the dashboard's Files page, pick a file, then click its row. Confirm Finder opens with that file selected.` (specs/manual.md) |
+| **REQ-DEV-001** `app.run(reload=True)` MUST restart the app when a watched source file changes. | manual | `MT-040 `python3 -m pygui new /tmp/mtapp` (with the package installed, or `PYTHONPATH=.`), then `python3 /tmp/mtapp/app.py`. With the window open, change the heading text in `app.py` and save. Confirm the terminal prints a reload notice and the window shows the new heading within about two seconds. Introduce a syntax error and save: the terminal reports it and waits; fix it and save: the app comes back.` (specs/manual.md) |
+| **REQ-DEV-002** The reload watcher MUST ignore hidden, `__pycache__`, virtual-environment and `node_modules` directories, and files other than source and style files. | auto | `reloader ignores hidden and generated directories` (tests/test_platform.py) |
+| **REQ-DEV-003** `app.run(debug=True)` MUST enable the web inspector. | manual | `MT-041 Run the dashboard (it calls `app.run(debug=True)`), right-click anywhere on the page. Confirm **Inspect Element** is offered and opens Web Inspector. Run `examples/hello.py` (no debug): confirm the item is absent.` (specs/manual.md) |
+| **REQ-DEV-004** `python -m pygui new <dir>` MUST create a valid `app.py` and MUST refuse to overwrite an existing one. | auto | `cli creates a runnable app and refuses to overwrite` (tests/test_platform.py) |
+| **REQ-DEV-005** The examples MUST run with `python3 examples/<name>.py` without installing the package. | manual | `MT-042 From a fresh clone, without installing anything, run `python3 examples/hello.py`, `python3 examples/todo.py` and `python3 examples/dashboard.py`, each from the repository root and once from inside `examples/`. Confirm each opens its window with no `ModuleNotFoundError`.` (specs/manual.md) |
+| **REQ-DEV-006** A function registered with `@app.expose` MUST be callable from JavaScript and return its result, or its error. | auto | `exposed functions return results or errors` (tests/test_runtime.py) |
+| **REQ-DEV-007** A function registered with `@app.timer` MUST run periodically while the app runs, and stop when it ends. | auto | `timers run periodically while the app runs` (tests/test_runtime.py) |
+| **REQ-PKG-001** The package MUST import only the Python standard library. | auto | `package imports only the standard library` (tests/test_platform.py) |
+| **REQ-PKG-002** The package MUST run on Python 3.9 and later. | manual | `MT-054 With Python 3.9 **and** the newest available Python 3 (e.g. via `pyenv` or python.org installers), run `python3 -m unittest discover -s tests` and `examples/dashboard.py`. Confirm both pass and open on each version. Record the versions in the release checklist.` (specs/manual.md) |
+| **REQ-PKG-003** The client runtime and stylesheet MUST be shipped as package data. | auto | `static assets are package data` (tests/test_platform.py) |
