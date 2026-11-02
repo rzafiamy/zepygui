@@ -116,6 +116,59 @@ def render_list_5k():
     report("render keyed list 5k rows (json)", enc * 1000, "ms", f"payload {size / 1e6:.2f} MB")
 
 
+@scenario
+def rerender_small_change_5k():
+    """Type one character in a search box above a 5,000-row table: what reaches the window."""
+    app = App("bench")
+    data = files(5000)
+    query = State("")
+    cols = ["name", {"key": "size", "align": "right", "format": lambda v: f"{v:,} B"}, "kind", "modified"]
+
+    @app.page("/")
+    def home():
+        return ui.container(ui.input(query, placeholder="Search"), ui.text(f"query: {query.value!r}"),
+                            ui.table(data, cols, virtual=False))
+
+    sink = Sink()
+    s = Session(app, "rerender", "/", "dark")
+    s.attach(sink)
+    sink.event.wait(5)
+    full = len(sink.last)
+    times = []
+    for ch in "hello":
+        sink.event.clear()
+        t = time.perf_counter()
+        query.set(query.value + ch)
+        sink.event.wait(5)
+        times.append(time.perf_counter() - t)
+    s.close()
+    report("re-render after a keystroke (5k rows)", min(times) * 1000, "ms",
+           f"sent {len(sink.last) / 1e3:.1f} KB instead of {full / 1e6:.2f} MB")
+
+
+@scenario
+def file_browser_20k():
+    """Open a folder of 20,000 files in ui.file_browser: first time, then again (cached)."""
+    import shutil
+    import tempfile
+    from zepygui import fs
+    root = tempfile.mkdtemp(prefix="zepygui-bench-")
+    try:
+        for i in range(20_000):
+            open(os.path.join(root, f"photo_{i:05d}.jpg"), "w").close()
+        scan = best_of(lambda: fs.listdir(root, cache=False), 3)
+        fs.invalidate()
+        fs.listdir(root)
+        app = App("bench")
+        app.page("/")(lambda: ui.file_browser(root, height=700))
+        warm = min((render_once(app) for _ in range(3)), key=lambda t: t[0])
+        report("list a 20k-file folder (scan + sort)", scan * 1000, "ms", "runs in the background past 120 ms")
+        report("file browser 20k files (render)", (warm[0] + warm[1]) * 1000, "ms",
+               f"payload {warm[2] / 1e3:.0f} KB, rows in view only")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 # -- scheduling ----------------------------------------------------------------------
 @scenario
 def state_flood_from_thread():

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} · Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.9", "3.13"]
+        include:
+          - os: ubuntu-latest
+            python: "3.11"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Unit tests (headless)
+        run: python -m unittest discover -s tests -v
+      - name: Requirements coverage
+        run: python tests/matrix.py --check
+      - name: Benchmarks (smoke run)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: python bench/bench.py
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install build
+          python -m build
+      - name: Install the wheel and import it
+        run: |
+          python -m pip install dist/*.whl
+          cd /tmp && python -c "import zepygui, zepygui.fs; from zepygui import ui; print(zepygui.__version__, ui.file_browser)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

@@ -1,0 +1,15 @@
+name: Feature request
+description: Suggest a component, an API or an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to build, and what is missing?
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: What the API could look like
+      render: python

@@ -1,0 +1,22 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Smallest script that shows it
+      render: python
+  - type: input
+    id: env
+    attributes:
+      label: ZePyGUI version, OS, Python version, run mode
+      placeholder: "0.2.0, Windows 11, Python 3.12, window"
+    validations:
+      required: true

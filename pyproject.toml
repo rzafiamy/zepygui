@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zepygui"
-version = "0.1.0"
+version = "0.2.0"
 description = "Beautiful native desktop apps in pure Python, with no dependencies."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -12,10 +12,11 @@ license = "MIT"
 # the icon artwork in zepygui/ui.py is adapted from Lucide (ISC) and Feather (MIT): their notices ship too
 license-files = ["LICENSE", "CREDITS.md", "licences/*.txt"]
 authors = [{ name = "rzafiamy" }]
-keywords = ["gui", "desktop", "webview", "native", "ui", "tauri", "reactive"]
+keywords = ["gui", "desktop", "webview", "native", "ui", "tauri", "reactive", "file-browser", "windows", "explorer"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: MacOS X :: Cocoa",
+    "Environment :: Win32 (MS Windows)",
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
     "Operating System :: MacOS",
@@ -23,6 +24,11 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: User Interfaces",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
@@ -32,6 +38,7 @@ dependencies = []
 Homepage = "https://github.com/rzafiamy/zepygui"
 Repository = "https://github.com/rzafiamy/zepygui"
 Issues = "https://github.com/rzafiamy/zepygui/issues"
+Changelog = "https://github.com/rzafiamy/zepygui/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
 packages = ["zepygui", "zepygui.static"]  # static/ holds the client runtime and stylesheet (data only)

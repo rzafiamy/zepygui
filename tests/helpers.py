@@ -12,6 +12,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 from zepygui.app import Session  # noqa: E402
+from zepygui.diff import apply as apply_patch  # noqa: E402
 
 
 class FakeWindow:
@@ -19,9 +20,18 @@ class FakeWindow:
 
     def __init__(self):
         self.messages = queue.Queue()
+        self.shown = None  # the full tree the window shows (patches are applied to it)
+        self.patches = []
 
     def __call__(self, text):
-        self.messages.put(json.loads(text))
+        m = json.loads(text)
+        if m["type"] == "render":
+            if m.get("diff"):
+                self.patches.append(m["tree"])
+                m["patch"] = m["tree"]
+                m["tree"] = apply_patch(self.shown, m["tree"])
+            self.shown = m["tree"]
+        self.messages.put(m)
 
     def next(self, kind, timeout=2.0):
         deadline = time.time() + timeout
@@ -164,12 +174,19 @@ def ws_recv(sock):
     return b1 & 0x0F, _read_exact(sock, n).decode("utf-8", "replace")
 
 
+_ws_shown = {}  # id(socket) -> the full tree that connection shows
+
+
 def ws_next(sock, kind, timeout=3.0):
     sock.settimeout(timeout)
     while True:
         op, text = ws_recv(sock)
         if op == 0x1:
             m = json.loads(text)
+            if m.get("type") == "render":
+                if m.get("diff"):
+                    m["tree"] = apply_patch(_ws_shown.get(id(sock)), m["tree"])
+                _ws_shown[id(sock)] = m["tree"]
             if m.get("type") == kind:
                 return m
 
