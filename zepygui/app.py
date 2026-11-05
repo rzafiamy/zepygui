@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import parse_qs
 
 from . import ui
+from .diff import diff as _diff
 from .state import State, _local, _runtime, invoke
 from .tasks import run_coroutine, shutdown as _shutdown_tasks
 from .ui import ComponentCall, Element
@@ -331,6 +332,7 @@ class Session:
         self._out = None
         self._rendering = False
         self._title = None
+        self._tree = None  # the tree the window shows: later renders send a patch against it
         self.worker = threading.Thread(target=self._loop, name=f"zepygui-window-{sid}", daemon=True)
         self.worker.start()
 
@@ -339,6 +341,7 @@ class Session:
         self._out = out
         self.connected = True
         self._title = None
+        self._tree = None  # a new or reloaded window has nothing to patch: send it all
         self.queue.put(("render",))
         for log in list(self.logs):
             log._resync(self)
@@ -439,6 +442,9 @@ class Session:
         if kind == "render":
             self._render_queued = False
             self.dirty = True
+        elif kind == "resync":  # the window could not apply a patch: start over from a full tree
+            self._tree = None
+            self.dirty = True
         elif kind == "event":
             _, hid, data, seq = item
             if seq:
@@ -506,7 +512,11 @@ class Session:
             del self.hooks[key]
         self.handlers = renderer.handlers
         self._sent_ack = self.ack
-        self.send({"type": "render", "tree": tree, "ack": self.ack})
+        previous, self._tree = self._tree, tree
+        if previous is None:
+            self.send({"type": "render", "tree": tree, "ack": self.ack})
+        else:
+            self.send({"type": "render", "tree": _diff(previous, tree), "ack": self.ack, "diff": 1})
         full_title = f"{title} · {self.app.title}" if title else self.app.title
         if full_title != self._title:
             self._title = full_title
@@ -647,6 +657,8 @@ class App:
             session.queue.put(("call", m.get("id"), m.get("name"), m.get("args") or []))
         elif kind == "theme":
             session.queue.put(("theme", m.get("theme")))
+        elif kind == "resync":
+            session.queue.put(("resync",))
         elif kind == "open_url":
             url = str(m.get("url") or "")
             if re.match(r"^(https?|mailto):", url):
@@ -741,6 +753,9 @@ class App:
           * ``"native"`` force the native macOS WKWebView window
           * ``"window"`` chrome-less Edge/Chrome/Chromium app window
           * ``"browser"`` open in the default browser (handy for debugging with dev tools)
+          * ``"server"`` open nothing: print the address and serve it (remote use, screenshots, CI)
+
+        The ``ZEPYGUI_MODE`` environment variable overrides ``mode``.
         ``reload=True`` restarts the app whenever a source file changes.
         ``debug=True`` enables the web inspector (right-click > Inspect).
         """
@@ -749,6 +764,8 @@ class App:
             # under spawn; it must not open a second window.
             return None
         self.debug = debug
+        mode = os.environ.get("ZEPYGUI_MODE") or mode
+        port = int(os.environ.get("ZEPYGUI_PORT") or port)
         if reload and not os.environ.get("ZEPYGUI_CHILD"):
             from .reloader import run_with_reloader
             return run_with_reloader()
@@ -869,6 +886,8 @@ class App:
             if self._browser is None:
                 print("[zepygui] no Edge/Chrome/Chromium found; opening your default browser instead")
                 webbrowser.open(url)
+        elif mode == "server":
+            print(f"[zepygui] serving on {url}", flush=True)
         else:
             webbrowser.open(url)
         threading.Thread(target=self._reaper, args=(mode, launched_at), daemon=True).start()

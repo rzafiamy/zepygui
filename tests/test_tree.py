@@ -1,4 +1,5 @@
 """Element tree and its serialisation (REQ-TRE), hooks and components (REQ-HOK)."""
+import os
 import unittest
 
 from helpers import Harness, find, handler_id, has_class, tag, text_of
@@ -271,11 +272,14 @@ class ComponentTests(unittest.TestCase):
             "sparkline": lambda: ui.sparkline([1, 3, 2]),
             "virtual_list": lambda: ui.virtual_list(list(range(100)), lambda i: ui.text(str(i))),
             "log_view": lambda: ui.log_view(Log()),
+            "file_browser": lambda: ui.file_browser(os.path.dirname(__file__), height=300),
+            "file_dialog": lambda: ui.file_dialog(State(True), start=os.path.dirname(__file__)),
+            "file_icon": lambda: ui.file_icon("a.pdf", 32), "breadcrumbs": lambda: ui.breadcrumbs(["a", "b"]),
         }
         not_components = {"Element", "component", "use_state", "use_form", "use_field", "el", "div", "span", "fragment", "html", "session",
                           "register_icon", "toast", "navigate", "run_js", "set_title", "set_theme", "toggle_theme",
                           "copy", "background", "open_file", "save_file", "choose_folder", "notify", "open_url",
-                          "open_path", "task", "run_command"}
+                          "open_path", "task", "run_command", "file_url"}
         self.assertEqual(set(ui.__all__) - not_components, set(minimal), "a component is missing from this test")
         h = render(lambda: ui.div(*[fn() for fn in minimal.values()]))
         self.assertGreater(len(h.tree["c"][0]["c"]), len(minimal) - 5)

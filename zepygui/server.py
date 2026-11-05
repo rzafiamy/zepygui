@@ -4,6 +4,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import mimetypes
+import os
+import re
 import secrets
 import socket
 import struct
@@ -159,6 +161,8 @@ class _Handler(BaseHTTPRequestHandler):
         path = unquote(url.path)
         if path == "/_pg/ws":
             return self._websocket(url)
+        if path == "/_pg/file":
+            return self._local_file(url)
         if path.startswith("/_pg/"):
             return self._static(STATIC_DIR, path[len("/_pg/"):])
         for prefix, directory in self.app._statics.items():
@@ -179,6 +183,60 @@ class _Handler(BaseHTTPRequestHandler):
         if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
             ctype += "; charset=utf-8"
         self._send(200, target.read_bytes(), ctype)
+
+    def _local_file(self, url):
+        """A file of the user's disk, for ``fs.file_url`` (thumbnails, previews, media).
+
+        Only for the app's own window (cookie-authenticated), streamed in chunks and with
+        byte ranges so videos can seek."""
+        if not self._authed():
+            return self._send(403, "Forbidden", "text/plain")
+        target = (parse_qs(url.query).get("p") or [""])[0]
+        try:
+            st = os.stat(target)
+        except (OSError, ValueError):
+            return self._send(404, "Not found", "text/plain")
+        if not os.path.isfile(target):
+            return self._send(404, "Not found", "text/plain")
+        size = st.st_size
+        start, end = 0, size - 1
+        m = re.match(r"bytes=(\d*)-(\d*)$", self.headers.get("Range", ""))
+        if m and size:
+            if m.group(1):
+                start = int(m.group(1))
+                end = min(int(m.group(2)), size - 1) if m.group(2) else size - 1
+            elif m.group(2):
+                start = max(0, size - int(m.group(2)))
+            if start > end:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.send_header("Content-Length", "0")
+                return self.end_headers()
+        ctype = mimetypes.guess_type(target)[0] or "application/octet-stream"
+        self.send_response(206 if m else 200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(end - start + 1 if size else 0))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Cache-Control", "private, max-age=60")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Security-Policy", "sandbox")  # an HTML file on disk must not run as the app
+        if m:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.end_headers()
+        if self.command == "HEAD" or not size:
+            return
+        try:
+            with open(target, "rb") as f:
+                f.seek(start)
+                left = end - start + 1
+                while left > 0:
+                    chunk = f.read(min(left, 1 << 18))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+        except (OSError, ConnectionError):
+            self.close_connection = True
 
     def _index(self, url):
         query = parse_qs(url.query)

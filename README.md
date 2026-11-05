@@ -1,10 +1,27 @@
+<div align="center">
+
+<img src="docs/logo.svg" width="88" alt="ZePyGUI logo">
+
 # ZePyGUI
 
 **Beautiful native desktop apps in pure Python. Zero dependencies.**
 
+[![CI](https://github.com/rzafiamy/zepygui/actions/workflows/ci.yml/badge.svg)](https://github.com/rzafiamy/zepygui/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/zepygui.svg)](https://pypi.org/project/zepygui/)
+[![Python](https://img.shields.io/pypi/pyversions/zepygui.svg)](https://pypi.org/project/zepygui/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+
+[Quick start](#quick-start) · [File browsing](#file-browsing) · [Components](#components) · [Heavy work](#heavy-work) · [Performance](#performance) · [Examples](#examples) · [Contributing](CONTRIBUTING.md)
+
+<img src="docs/screenshots/explorer-dark.png" alt="The Explorer example: a file browser with quick access, breadcrumbs, a details view and a preview panel" width="100%">
+
+</div>
+
 ZePyGUI works like Tauri, but you write Python instead of Rust and JavaScript. Your app runs in
-a real native window using the operating system's web engine, comes with a polished design system,
-and updates itself when your data changes.
+a real window using the operating system's web engine, comes with a polished design system,
+updates itself when your data changes, and sends the window only what changed.
 
 ```python
 from zepygui import App, State, ui
@@ -22,11 +39,7 @@ def home():
 app.run()
 ```
 
-```bash
-python hello.py
-```
-
-No `pip install`, no Node, no Rust toolchain. You only need Python 3.9+.
+No Node, no Rust toolchain, no dependencies: only Python 3.9+.
 
 ---
 
@@ -34,29 +47,48 @@ No `pip install`, no Node, no Rust toolchain. You only need Python 3.9+.
 
 | | |
 |---|---|
-| **Native window** | On macOS, a real `NSWindow` + `WKWebView` (the same approach Tauri takes), driven via `ctypes`. Native menu bar, copy/paste, full screen, the title bar follows your theme, and the window remembers its size and position. |
-| **No dependencies** | Only the standard library. Nothing to install, nothing to break. |
-| **Beautiful by default** | 50+ components: buttons, inputs, tables, tabs, modals, toasts, charts, sidebar layouts. Dark and light themes, smooth animations. |
-| **Reactive** | Change a `State` and every window that shows it re-renders automatically, even from background threads. |
-| **Simple** | Your UI is just Python functions that return components. |
-| **Desktop APIs** | Native open/save/folder dialogs, system notifications, open files/URLs. |
-| **Built for heavy work** | Background tasks with progress and cancel (threads, processes or asyncio), streamed command output, a log console for 100,000+ lines, virtual tables for 100,000+ rows. |
+| **Native window** | On macOS, a real `NSWindow` + `WKWebView` (the approach Tauri takes), driven via `ctypes`. On Windows and Linux, a chrome-less Edge/Chromium app window. Native menu bar, copy/paste, full screen, a title bar that follows your theme, remembered window size. |
+| **No dependencies** | Only the standard library. Nothing to install, nothing to break, trivial to bundle. |
+| **Beautiful by default** | 55+ components, 100+ icons, coloured file-type icons, dark and light themes, one accent colour drives the palette. |
+| **File browsing built in** | An Explorer-like `ui.file_browser` and an in-app `ui.file_dialog`, with Windows drives, known folders, hidden attributes and the Recycle Bin handled for you. |
+| **Fast** | Incremental renders (a keystroke above a 5,000-row table sends 0.6 KB, not 0.9 MB), virtual lists and tables, a log console for 100,000+ lines, renders coalesced to one per frame. |
+| **Reactive** | Change a `State` and every window that shows it re-renders, even from background threads. |
+| **Built for heavy work** | Background tasks with progress and cancel (threads, processes or asyncio), streamed command output. |
 | **Validation** | Rules, live field errors and validated submits, including errors sent back by your backend. |
-| **Dev friendly** | `app.run(reload=True)` restarts the app on save; `debug=True` enables the web inspector. |
+| **Dev friendly** | `reload=True` restarts on save, `debug=True` enables the inspector, `python -m zepygui new` scaffolds an app. |
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/dashboard.png" alt="Dashboard example in dark mode"></td>
+<td width="50%"><img src="docs/screenshots/explorer-light.png" alt="File browser in icon view with image thumbnails, light mode"></td>
+</tr>
+<tr>
+<td align="center"><sub><code>examples/dashboard.py</code>: sidebar, live charts, stats, tables</sub></td>
+<td align="center"><sub><code>examples/explorer.py</code>: icon view with thumbnails and preview</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/file-dialog.png" alt="In-app Save as dialog"></td>
+<td width="50%"><img src="docs/screenshots/console.png" alt="Log console with 70,000 lines and a command's output"></td>
+</tr>
+<tr>
+<td align="center"><sub><code>ui.file_dialog(mode="save")</code>: the same dialog on every OS</sub></td>
+<td align="center"><sub><code>examples/console.py</code>: 70,000 lines, filter, run commands</sub></td>
+</tr>
+</table>
 
 ### How it works
 
 ```
- Your Python code ──► builds a tree of components ──► sent to the window over an in-process bridge
-        ▲                                                       │
+ Your Python code ──► builds a tree of components ──► diffed against what the window shows
+        ▲                                                       │  only the changes are sent
         └──────────── events (click, input, …) ◄────────────────┘
 ```
 
 * **macOS**: native `NSWindow` + `WKWebView`. No server and no network port: Python and the UI talk
   through a WebKit script-message bridge.
 * **Windows / Linux**: a frameless app window using the system's Edge/Chromium (Edge ships with
-  Windows), talking to Python over a private, token-protected loopback channel. It's the same API, and
-  native WebView2/WebKitGTK backends can be added without changing any app code.
+  Windows), talking to Python over a private, token-protected loopback channel. Same API; native
+  WebView2/WebKitGTK backends can be added without changing any app code.
 
 ---
 
@@ -68,33 +100,114 @@ Install from [PyPI](https://pypi.org/project/zepygui/):
 python3 -m pip install zepygui
 ```
 
-Or, from a clone of [the repository](https://github.com/rzafiamy/zepygui), in editable mode:
+Or from a clone, in editable mode:
 
 ```bash
 git clone https://github.com/rzafiamy/zepygui.git
-cd zepygui
-python3 -m pip install -e .
 ```
 
-Then create and run an app:
+```bash
+cd zepygui && python3 -m pip install -e .
+```
+
+Create and run an app:
 
 ```bash
-python3 -m zepygui new myapp     # creates myapp/app.py (with a sidebar, pages, theme toggle)
+python3 -m zepygui new myapp
+```
+
+```bash
 python3 myapp/app.py
 ```
 
-(Without installing, put your app next to the `zepygui/` folder, or run the examples below, which find it on their own.)
+## Examples
 
-Or run the examples:
+Every example runs from a clone without installing anything:
 
-```bash
-python examples/hello.py       # counter
-python examples/todo.py        # to-do list
-python examples/dashboard.py   # full app: sidebar, live charts, table, modal, settings, file dialogs
-python examples/console.py     # log console: 70,000 lines, filter, run commands, export
-python examples/files.py       # scan a folder in the background, 100k-row table, hash in a process
-python examples/signup.py      # form validation with live errors and server-side errors
+| Command | What it shows |
+|---|---|
+| `python examples/hello.py` | the smallest app: a counter |
+| `python examples/todo.py` | a to-do list with keyed items |
+| `python examples/dashboard.py` | a full app: sidebar, live charts, table, modal, settings, native dialogs |
+| `python examples/explorer.py` | a file explorer: drives, quick access, details/icons views, previews, rename/delete, in-app dialogs |
+| `python examples/console.py` | a log console: 70,000 lines, filter, run commands, export |
+| `python examples/files.py` | scan a folder tree in the background, 100k-row table, hashing in a process |
+| `python examples/signup.py` | form validation with live and server-side errors |
+
+---
+
+## File browsing
+
+### `ui.file_browser`: Explorer and Finder in one call
+
+```python
+from zepygui import App, State, fs, ui
+
+app = App("Files")
+folder = State(fs.home())        # two-way: follows the user's navigation
+picked = State([])
+
+@app.page("/")
+def home():
+    return ui.file_browser(
+        folder,
+        on_select=picked.set,     # called with the selected paths
+        on_open=ui.open_path,     # double-click / Enter on a file (this is the default)
+        manage=True,              # New folder, Rename (F2), Delete to the Recycle Bin / Trash
+        height=600,
+    )
+
+app.run()
 ```
+
+What you get:
+
+* **Quick access** (Home, Desktop, Documents, Downloads, Pictures, Music, Videos) and **This PC** with
+  every drive, its label and a usage bar. A breadcrumb address bar you can also type into
+  (`%USERPROFILE%\Downloads`, `~/Documents`, a UNC share…), back / forward / up / refresh.
+* **Details view** (sortable Name, Date modified, Type, Size) and **icon view** with image thumbnails.
+* **Search** as you type, with `*` and `?` wildcards; `types=["png", "jpg"]` to show only some files;
+  `folders_only=True`; hidden files on demand.
+* **Selection** with click, Ctrl/Cmd-click and Shift-click; **keyboard**: arrows, Home/End,
+  PageUp/PageDown, Enter, Backspace, Alt+←/→, F2, Delete, F5, Ctrl+A, and type-ahead.
+* **Large folders stay fast**: listings are cached and revalidated with one `stat`, rows use one
+  delegated event handler, folders over 400 entries render only the rows in view, and a slow folder
+  (a network share, a USB stick) is read in the background behind a placeholder.
+
+### `ui.file_dialog`: the same dialog on every OS
+
+```python
+show = State(False)
+ui.button("Export…", lambda: show.set(True))
+ui.file_dialog(show, mode="save", default_name="report.csv", types=["csv"], on_done=export)
+# mode="open" (multiple=True for a list), "save" (adds the extension, asks before replacing) or "folder"
+```
+
+It is a file browser in a modal: it never opens behind the window and needs no external program.
+The system dialogs are still there: `ui.open_file()`, `ui.save_file()`, `ui.choose_folder()`.
+On Windows these are the native common dialogs called directly through `ctypes` (instant, owned by
+the app window); PowerShell is only a fallback.
+
+### `zepygui.fs`: the file system as a file browser sees it
+
+```python
+from zepygui import fs
+
+fs.drives()                    # [{"name": "Local Disk (C:)", "path": "C:\\", "kind": "fixed", "free": …}, …]
+fs.places()                    # known folders: from the Windows shell (OneDrive redirection included) or XDG
+fs.listdir(path, sort="size")  # Entry objects: name, path, is_dir, size, modified, kind, ext, hidden
+fs.crumbs(r"C:\Users\me")       # [("Local Disk (C:)", "C:\\"), ("Users", "C:\\Users"), ("me", …)]
+fs.trash(path)                 # Recycle Bin / Trash, never a permanent delete
+fs.human_size(1536)            # "1.5 KB"
+ui.file_icon("report.pdf", 48) # a coloured two-tone icon for any file type, folder or drive
+ui.image(fs.file_url(path))    # show a local file in any run mode
+```
+
+On Windows, drives come from `GetLogicalDrives` (without "no disk" pop-ups for empty card readers),
+known folders from `SHGetKnownFolderPath`, hidden files from their attributes, and deletion goes
+through `SHFileOperation` to the Recycle Bin.
+
+<p align="center"><img src="docs/screenshots/explorer-this-pc.png" alt="The computer view with folders and drives" width="80%"></p>
 
 ---
 
@@ -229,9 +342,11 @@ def layout(content):
 
 **Large data:** `virtual_list`, `log_view`, and `table(..., virtual=True)`
 
+**Files:** `file_browser`, `file_dialog`, `file_icon`, `breadcrumbs` (see [File browsing](#file-browsing))
+
 **Actions:** `toast`, `navigate`, `set_theme`, `toggle_theme`, `set_title`, `copy`, `run_js`, `background`
 
-**Desktop:** `open_file`, `save_file`, `choose_folder`, `notify`, `open_url`, `open_path`
+**Desktop:** `open_file`, `save_file`, `choose_folder`, `notify`, `open_url`, `open_path`, `file_url`
 
 A few examples:
 
@@ -342,12 +457,7 @@ ui.virtual_list(files, lambda f: ui.row(ui.icon("file"), ui.text(f["name"])), it
 
 Virtual rows have a fixed height and their cells don't wrap.
 
-### Performance numbers
-
-`python3 bench/bench.py` measures the runtime headless (no window). Typical results on the development Mac with Python 3.9 (numbers vary by a few percent between runs):
-
-| Scenario | Before | Now |
-|---|---|---|
+---|---|---|
 | Render 5,000 table rows | 3,640 ms | 277 ms |
 | Render a 5,000-row keyed list | 7,107 ms | 511 ms, payload 5.5 → 4.2 MB |
 | Render a 100,000-row table | (minutes) | 5 ms, 12 KB (virtual) |
@@ -441,7 +551,38 @@ app.run(reload=True)         # restart on file save, for development
 app.run(debug=True)          # right-click → Inspect Element
 app.run(mode="window")       # force the Edge/Chromium app window
 app.run(mode="browser")      # open in your default browser (handy for dev tools)
+app.run(mode="server")       # open nothing, print the address (remote use, screenshots, CI)
 ```
+
+`ZEPYGUI_MODE=server` and `ZEPYGUI_PORT=8765` override the mode and port without editing the code.
+
+---
+
+## Performance
+
+`python3 bench/bench.py` measures the runtime headless (no window). Linux, Python 3.13, one run
+(numbers vary by a few percent):
+
+| Scenario | Result |
+|---|---|
+| Re-render after a keystroke above a 5,000-row table | 97 ms, **0.6 KB sent** instead of 0.9 MB |
+| Render 5,000 table rows | 114 ms build + 17 ms encode |
+| Render a 100,000-row table | 2 ms, 12 KB (virtual) |
+| Scroll a 100,000-row table to new rows | ~20 ms per step |
+| Open a folder of 20,000 files in `ui.file_browser` | 135 ms to scan once, then **7 ms**, 49 KB per render |
+| 50,000 `State.set()` from a thread until the window shows the last | 101 ms, 5 renders |
+| Stream 70,000 log lines into a window | 94 ms, 12 messages |
+| Click while slow work runs | 18 ms (`ui.task`) instead of 500 ms blocked |
+| Memory kept after rendering 5,000 rows | 2 MB, no garbage cycles |
+
+What makes it fast:
+
+* **Incremental renders.** Each render is compared with the tree the window shows; unchanged subtrees
+  are sent as a node index, so the window patches only what changed ([`zepygui/diff.py`](zepygui/diff.py)).
+* **One render per frame** per window, however fast states change, from any thread.
+* **Virtualization** for tables, lists, the log console and the file browser.
+* **Event delegation**: a list of 10,000 rows needs one handler (`data-pg-item`), not 10,000.
+* **Icons as single nodes**, their markup built once per icon.
 
 ---
 
@@ -450,41 +591,62 @@ app.run(mode="browser")      # open in your default browser (handy for dev tools
 ```
 zepygui/
   app.py        App, routing, per-window sessions, renderer
-  ui.py         component library
+  diff.py       incremental renders: patches against the tree the window shows
+  ui.py         component library and icons
+  browser.py    file_browser, file_dialog, file_icon, breadcrumbs
+  fs.py         drives, known folders, cached listings, trash (Windows, macOS, Linux)
   state.py      reactive State
   tasks.py      background work: thread pool, process pool, asyncio loop, commands
   log.py        streaming log buffer behind ui.log_view
   forms.py      validation: Field, Form, rules (also exported as zepygui.rules)
   macos.py      native NSWindow + WKWebView via ctypes
   window.py     Edge/Chromium app-window launcher (Windows/Linux)
-  server.py     stdlib HTTP + WebSocket server (fallback transport only)
-  desktop.py    file dialogs, notifications, open files/URLs
+  server.py     stdlib HTTP + WebSocket server (fallback transport, local files)
+  desktop.py    native file dialogs, notifications, open files/URLs
   reloader.py   restart on save
   static/       client runtime (DOM patching) + design system CSS
-examples/       hello.py, todo.py, dashboard.py, console.py, files.py, signup.py
-bench/          python3 bench/bench.py   (rendering, scheduling, memory, logs, tasks)
-tests/          python3 -m unittest discover -s tests   (headless)
-                ZEPYGUI_GUI_TESTS=1 python3 -m unittest discover -s tests   (+ real native windows, macOS)
-                python3 tests/matrix.py   (rebuild specs/matrix.md; fails on any uncovered requirement)
-specs/         specification, traceability matrix, manual test suite
-licences/      licence texts of third-party material (see CREDITS.md)
+examples/       hello, todo, dashboard, explorer, console, files, signup
+bench/          python3 bench/bench.py
+tests/          python3 -m unittest discover -s tests   (headless, ~15 s)
+tools/          screenshots.mjs (regenerates docs/screenshots), demo_home.py
+specs/          specification, traceability matrix, manual test suite
 ```
+
+## Testing
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+```bash
+python3 tests/matrix.py --check
+```
+
+The first runs the headless suite (a fake window, a real loopback server, real folders); the second
+checks that every requirement of [`specs/specification.md`](specs/specification.md) is covered by a test or a
+[manual procedure](specs/manual.md). `ZEPYGUI_GUI_TESTS=1` adds tests that open real native windows (macOS).
+The screenshots in this README are produced by the examples themselves:
+`node tools/screenshots.mjs` (needs Node and Playwright).
 
 ## Status
 
 * **macOS**: native backend, tested.
-* **Windows / Linux**: use the Edge/Chromium app window. If no Chromium browser is installed, the app
-  opens in the default browser. Native WebView2 (Windows) and WebKitGTK (Linux) backends are the next step.
-* Packaging into a standalone `.app`/`.exe` is not built in yet; tools such as PyInstaller can bundle
-  a ZePyGUI app because it has no dependencies to collect.
+* **Windows / Linux**: Edge/Chromium app window; without one the app opens in the default browser.
+  The file browser and `fs` are tested on Linux; the Windows-specific code (drives, known folders,
+  native dialogs, Recycle Bin) follows the documented Win32 API; the CI workflow runs the suite on Windows too.
+  Native WebView2 (Windows) and WebKitGTK (Linux) backends are the next step.
+* Packaging into a standalone `.app`/`.exe` is not built in; tools such as PyInstaller can bundle a
+  ZePyGUI app easily because it has no dependencies to collect.
 
-## Specifications
+See the [changelog](CHANGELOG.md) for what changed in each release, and
+[known gaps](specs/specification.md#7-known-gaps) for what is deliberately not done yet.
 
-* [`specs/specification.md`](https://github.com/rzafiamy/zepygui/blob/main/specs/specification.md): what ZePyGUI does, as atomic, testable requirements
-* [`specs/matrix.md`](https://github.com/rzafiamy/zepygui/blob/main/specs/matrix.md): traceability matrix, generated by `python3 tests/matrix.py`
-* [`specs/manual.md`](https://github.com/rzafiamy/zepygui/blob/main/specs/manual.md): manual test procedures for what automation cannot reach
+## Contributing
+
+Bug reports, ideas and pull requests are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+Security issues: see [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT License, copyright (c) 2026 rzafiamy. See [`LICENSE`](https://github.com/rzafiamy/zepygui/blob/main/LICENSE).
-Third-party material: [`CREDITS.md`](https://github.com/rzafiamy/zepygui/blob/main/CREDITS.md).
+MIT License, copyright (c) 2026 rzafiamy. See [`LICENSE`](LICENSE).
+Third-party material: [`CREDITS.md`](CREDITS.md).

@@ -60,8 +60,15 @@
     hello(m) { if (boot && boot !== m.boot) { location.reload(); return; } boot = m.boot; },
     render(m) {
       ack = m.ack || 0;
+      if (m.diff && !rendered) { send({ type: "resync" }); return; }
       if (!rendered) { root.innerHTML = ""; rendered = true; }
-      patchChildren(root, [m.tree], false);
+      try {
+        if (m.diff) applyPatch(root, [m.tree], false);
+        else patchChildren(root, [m.tree], false);
+      } catch (err) {
+        console.error(err);
+        send({ type: "resync" });  // the DOM drifted from what Python expects: ask for a full tree
+      }
     },
     ack(m) { ack = Math.max(ack, m.ack || 0); },
     toast(m) { toast(m); },
@@ -119,8 +126,16 @@
       d.value = el.value;
       if (el.type === "checkbox" || el.type === "radio") d.checked = el.checked;
     }
-    if ("key" in e) { d.key = e.key; d.ctrl = e.ctrlKey; d.shift = e.shiftKey; d.alt = e.altKey; d.meta = e.metaKey; }
-    if (e.type === "scroll") { d.scrollTop = Math.round(el.scrollTop); d.scrollLeft = Math.round(el.scrollLeft); }
+    if ("key" in e) d.key = e.key;
+    if ("ctrlKey" in e) { d.ctrl = e.ctrlKey; d.shift = e.shiftKey; d.alt = e.altKey; d.meta = e.metaKey; }
+    if (e.type === "scroll") {
+      d.scrollTop = Math.round(el.scrollTop); d.scrollLeft = Math.round(el.scrollLeft);
+      d.width = el.clientWidth; d.height = el.clientHeight;
+    }
+    // Event delegation: one handler on a list receives the data-pg-item of the row under the
+    // pointer, so a list of 10,000 rows needs one handler instead of 10,000.
+    const item = e.target && e.target.closest ? e.target.closest("[data-pg-item]") : null;
+    if (item && el.contains(item)) d.item = item.getAttribute("data-pg-item");
     return d;
   }
 
@@ -237,6 +252,13 @@
     if (v === true) el.setAttribute(k, "");
     else if (v === false || v == null) el.removeAttribute(k);
     else el.setAttribute(k, String(v));
+    if (k === "data-pg-reveal" && v != null && v !== false) {
+      // keep the element (e.g. the row picked with the keyboard) in view
+      requestAnimationFrame(() => el.isConnected && el.scrollIntoView({ block: "nearest", inline: "nearest" }));
+    } else if (k === "data-pg-scroll" && v != null) {
+      const top = parseFloat(String(v));  // "offset:nonce": the nonce lets the same offset be sent again
+      requestAnimationFrame(() => { if (Math.abs(el.scrollTop - top) > 1) el.scrollTop = top; });
+    }
   }
 
   function update(el, v, svg) {
@@ -264,7 +286,9 @@
       if (el._pgH !== v.h) { el.innerHTML = v.h; el._pgH = v.h; }
     } else {
       if (el._pgH != null) { el.innerHTML = ""; el._pgH = null; }
-      patchChildren(el, v.c || [], svg && v.t !== "foreignObject");
+      const childSvg = svg && v.t !== "foreignObject";
+      if (v.d) applyPatch(el, v.c || [], childSvg);
+      else patchChildren(el, v.c || [], childSvg);
     }
     if (deferredValue !== undefined) setAttr(el, "value", deferredValue);
     if (el.type === "range") el.style.setProperty("--pct", rangePct(el));
@@ -304,6 +328,28 @@
         return node;
       }
       return create(v, svg);
+    });
+    for (const n of olds) if (!used.has(n)) n.remove();
+    for (let i = 0; i < next.length; i++) {
+      const cur = parent.childNodes[i];
+      if (cur !== next[i]) parent.insertBefore(next[i], cur || null);
+    }
+  }
+
+  // A patch (see zepygui/diff.py) names the old children it keeps by index: a number keeps
+  // that node untouched, an object with "o" updates that node, anything else is created.
+  function applyPatch(parent, ps, svg) {
+    const olds = Array.from(parent.childNodes);
+    const used = new Set();
+    const next = ps.map((p) => {
+      if (typeof p === "number" || (p && typeof p === "object" && p.o != null)) {
+        const node = olds[typeof p === "number" ? p : p.o];
+        if (!node || used.has(node)) throw new Error("zepygui: patch does not match the DOM");
+        used.add(node);
+        if (typeof p !== "number") update(node, p, svg || p.t === "svg");
+        return node;
+      }
+      return create(p, svg);
     });
     for (const n of olds) if (!used.has(n)) n.remove();
     for (let i = 0; i < next.length; i++) {

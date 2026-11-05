@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-label="ZePyGUI">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+  <rect width="96" height="96" rx="24" fill="url(#g)"/>
+  <rect x="18" y="22" width="60" height="46" rx="8" fill="none" stroke="#fff" stroke-width="5" opacity=".95"/>
+  <path d="M18 34h60" stroke="#fff" stroke-width="5" opacity=".95"/>
+  <circle cx="27" cy="28" r="2.4" fill="#fff"/><circle cx="35" cy="28" r="2.4" fill="#fff"/>
+  <path d="M36 44h24L36 60h24" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M38 76h20" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+</svg>
