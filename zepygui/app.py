@@ -560,6 +560,8 @@ class App:
         self._css = [css] if css else []
         self._head = [head] if head else []
         self._statics = {}
+        self._http = {}
+        self._custom_page = None
         self._exposed = {}
         self._timers = []
         self._startup, self._shutdown = [], []
@@ -621,6 +623,16 @@ class App:
         self._statics["/" + prefix.strip("/")] = str(Path(directory).resolve())
 
     # -- runtime helpers -----------------------------------------------------
+    def http(self, prefix, fn):
+        """Answer HTTP under ``prefix`` yourself: ``fn(method, path, body)`` returns
+        ``(status, content_type, bytes)``. For an app that brings its own front end."""
+        self._http["/" + prefix.strip("/")] = fn
+
+    def index(self, fn):
+        """Serve the page returned by ``fn()`` instead of ZePyGUI's own UI root."""
+        self._custom_page = fn
+        return fn
+
     def connected_sessions(self):
         with self._lock:
             return [s for s in self.sessions.values() if s.connected]
