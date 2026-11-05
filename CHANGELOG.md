@@ -4,9 +4,11 @@ All notable changes to ZePyGUI are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
-## [0.2.0] - unreleased
+## [0.2.0] - 2026-11-05
 
 ### Added
+- `app.http(prefix, fn)` answers GET and POST under a prefix, behind the window's token, and
+  `app.index(fn)` replaces the UI root with the app's own page: an app can bring its own front end.
 - **File browsing.** `ui.file_browser`: an Explorer/Finder-like browser with Quick access, drives with
   usage bars, a breadcrumb address bar you can type into, back/forward/up/refresh, search with
   wildcards, details and icon views with image thumbnails, sorting, multi-selection, keyboard
@@ -39,5 +41,5 @@ All notable changes to ZePyGUI are recorded here. The format follows
 First release: native macOS window, Edge/Chromium app window on Windows and Linux, reactive
 state, 50+ components, charts, background tasks, log console, virtual tables, validation.
 
-[0.2.0]: https://github.com/rzafiamy/zepygui/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/rzafiamy/zepygui/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rzafiamy/zepygui/releases/tag/v0.1.0
