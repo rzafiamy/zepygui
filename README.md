@@ -648,5 +648,5 @@ Security issues: see [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT License, copyright (c) 2026 rzafiamy. See [`LICENSE`](LICENSE).
+MIT License, copyright (c) 2026 rzl. See [`LICENSE`](LICENSE).
 Third-party material: [`CREDITS.md`](CREDITS.md).

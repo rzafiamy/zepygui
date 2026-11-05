@@ -11,7 +11,7 @@ requires-python = ">=3.9"
 license = "MIT"
 # the icon artwork in zepygui/ui.py is adapted from Lucide (ISC) and Feather (MIT): their notices ship too
 license-files = ["LICENSE", "CREDITS.md", "licences/*.txt"]
-authors = [{ name = "rzafiamy" }]
+authors = [{ name = "rzl" }]
 keywords = ["gui", "desktop", "webview", "native", "ui", "tauri", "reactive", "file-browser", "windows", "explorer"]
 classifiers = [
     "Development Status :: 3 - Alpha",
