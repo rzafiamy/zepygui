@@ -154,9 +154,32 @@ class _Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         self.do_GET()
 
+    def _route(self, path, body=b""):
+        """True when an app route answered the request."""
+        for prefix, fn in self.app._http.items():
+            if path == prefix or path.startswith(prefix + "/"):
+                if not self._authed():
+                    self._send(403, "Forbidden", "text/plain")
+                else:
+                    status, ctype, data = fn(self.command, path[len(prefix):], body)
+                    self._send(status, data, ctype)
+                return True
+        return False
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > _MAX_MESSAGE:
+            self.close_connection = True
+            return self._send(413, "Too large", "text/plain")
+        body = self.rfile.read(length)
+        if not self._route(unquote(urlsplit(self.path).path), body):
+            self._send(404, "Not found", "text/plain")
+
     def do_GET(self):
         url = urlsplit(self.path)
         path = unquote(url.path)
+        if self._route(path):
+            return None
         if path == "/_pg/ws":
             return self._websocket(url)
         if path.startswith("/_pg/"):
@@ -190,7 +213,7 @@ class _Handler(BaseHTTPRequestHandler):
             return self._send(302, "", headers={"Location": location, "Set-Cookie": cookie})
         if not self._authed():
             return self._send(403, _FORBIDDEN)
-        self._send(200, self.app._index_html())
+        self._send(200, self.app._custom_page() if self.app._custom_page else self.app._index_html())
 
     def _websocket(self, url):
         if not self._authed():
