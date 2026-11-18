@@ -122,7 +122,8 @@
       return d;
     }
     const tag = el.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+    if (el._ed) d.value = el._ed.ta.value;  // a code editor: its text, whatever the event
+    else if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
       d.value = el.value;
       if (el.type === "checkbox" || el.type === "radio") d.checked = el.checked;
     }
@@ -282,6 +283,8 @@
       return;
     }
     if (el._log) unmountLog(el);  // this node was a console and is now reused for something else
+    if (a["data-pg-editor"] != null) { mountEditor(el, a); return; }  // the editor draws its own children
+    if (el._ed) unmountEditor(el);
     if (v.h != null) {
       if (el._pgH !== v.h) { el.innerHTML = v.h; el._pgH = v.h; }
     } else {
@@ -363,7 +366,7 @@
   // resend). A view only creates elements for the lines in its viewport.
   const logs = new Map();
   const LOG_OVERSCAN = 20;
-  const LEVEL = [[/\b(ERROR|FATAL|CRITICAL)\b|Traceback|Exception\b/, "pg-log-err"], [/\bWARN(ING)?\b/, "pg-log-warn"], [/\bDEBUG\b/, "pg-log-dim"]];
+  const LEVEL = [[/\b(ERROR|FATAL|CRITICAL)\b|Traceback|Exception\b/, "pg-log-err"], [/\bWARN(ING)?\b/, "pg-log-warn"], [/\bDEBUG\b/, "pg-log-dim"], [/\b(SUCCESS|PASSED)\b|✔/, "pg-log-ok"], [/(^|\s)(▶|━━|==>)\s/, "pg-log-head"]];
 
   function logBuf(id) {
     let b = logs.get(id);
@@ -451,6 +454,275 @@
       }
       const num = String(b.start + at + 1);
       if (row.dataset.n !== num) row.dataset.n = num;
+    }
+  }
+
+
+  // ------------------------------------------------------------------ code editor
+  // A transparent textarea over a highlighted <pre>: the textarea keeps native editing,
+  // selection, IME and undo; the <pre> under it only paints colours.
+  const ED_LH = 20;
+  const escH = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const tok = (cls, s) => s ? `<span class="tk-${cls}">${escH(s)}</span>` : "";
+
+  // Inline tokens shared by every language: interpolations ${...}, strings, numbers, keywords.
+  function hlValue(s, lang) {
+    let out = "", i = 0;
+    const kw = lang === "python" ? /^(def|class|return|if|elif|else|for|while|import|from|as|with|try|except|finally|raise|in|not|and|or|is|lambda|yield|pass|break|continue|None|True|False)\b/
+      : lang === "shell" ? /^(if|then|else|elif|fi|for|do|done|while|case|esac|function|export|local|return|in|echo|cd|exit)\b/
+      : /^(true|false|yes|no|on|off|null|True|False|None|~)(?=\s*(?:$|[,\]}#;]))/;
+    while (i < s.length) {
+      const r = s.slice(i);
+      let m;
+      if ((m = /^\$\{[^}\n]*\}?|^\$[A-Za-z_][A-Za-z0-9_]*/.exec(r))) { out += tok("var", m[0]); i += m[0].length; continue; }
+      if ((lang === "yaml" || lang === "python" || lang === "shell" || lang === "toml") && (m = /^#.*/.exec(r)) && (i === 0 || /\s/.test(s[i - 1]))) { out += tok("com", m[0]); break; }
+      if (lang === "ini" && (m = /^\s[;#].*/.exec(r))) { out += tok("com", m[0]); break; }
+      if ((m = /^"(?:[^"\\]|\\.)*"?|^'(?:[^'\\]|\\.)*'?/.exec(r))) { out += hlString(m[0]); i += m[0].length; continue; }
+      if ((m = /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?(?![\w.])/.exec(r)) && (i === 0 || /[\s:=,\[{(]/.test(s[i - 1]))) { out += tok("num", m[0]); i += m[0].length; continue; }
+      if ((m = kw.exec(r)) && (i === 0 || /[\s:=,\[{(]/.test(s[i - 1]))) { out += tok("kw", m[0]); i += m[0].length; continue; }
+      if (lang === "yaml" && (m = /^[&*][\w-]+|^![\w!-]+/.exec(r)) && (i === 0 || /\s/.test(s[i - 1]))) { out += tok("tag", m[0]); i += m[0].length; continue; }
+      if ((m = /^[\[\]{},|&;<>()]+/.exec(r))) { out += tok("pun", m[0]); i += m[0].length; continue; }
+      if ((m = /^[^\s$"'#;\[\]{},|&<>()]+|^\s+/.exec(r))) { out += escH(m[0]); i += m[0].length; continue; }
+      out += escH(s[i]); i++;
+    }
+    return out;
+  }
+
+  function hlString(s) {
+    // keep ${...} visible inside strings
+    return s.split(/(\$\{[^}]*\}?)/).map((p, k) => k % 2 ? tok("var", p) : tok("str", p)).join("");
+  }
+
+  function hlYamlLine(line, st) {
+    if (st.block != null) {
+      const ind = line.match(/^\s*/)[0].length;
+      if (!line.trim() || ind > st.block) return hlString(line);
+      st.block = null;
+    }
+    if (/^\s*#/.test(line)) return tok("com", line);
+    if (/^(---|\.\.\.)\s*$/.test(line)) return tok("pun", line);
+    const m = /^(\s*)((?:-\s+)*)((?:"[^"]*"|'[^']*'|[^\s#'"\-:][^#:]*?|-[^\s][^#:]*?))(\s*:)(?=\s|$)(.*)$/.exec(line);
+    let head = "", rest = line, ind = 0;
+    if (m) {
+      ind = m[1].length + m[2].length;
+      head = escH(m[1]) + tok("pun", m[2]) + tok("key", m[3]) + tok("pun", m[4]);
+      rest = m[5];
+    } else {
+      const d = /^(\s*)((?:-\s+|-$)+)(.*)$/.exec(line);
+      if (d) { head = escH(d[1]) + tok("pun", d[2]); rest = d[3]; ind = d[1].length; }
+    }
+    if (/^\s*[|>][-+0-9]*\s*(#.*)?$/.test(rest)) st.block = ind;
+    return head + hlValue(rest, "yaml");
+  }
+
+  function hlIniLine(line, st) {
+    let m;
+    if (st.cont && /^\s+\S/.test(line) && !/^\s*[;#]/.test(line)) return hlValue(line, "ini");
+    st.cont = false;
+    if ((m = /^(\s*)([;#].*)$/.exec(line))) return escH(m[1]) + tok("com", m[2]);
+    if ((m = /^(\s*)(\[)([^\]]*)(\])(.*)$/.exec(line))) {
+      const name = m[3].split(":");
+      const inner = name.length > 1 ? tok("kw", name[0]) + tok("pun", ":") + tok("sec", name.slice(1).join(":")) : tok("sec", m[3]);
+      return escH(m[1]) + tok("pun", m[2]) + inner + tok("pun", m[4]) + hlValue(m[5], "ini");
+    }
+    if ((m = /^(\s*)([^=:\s][^=:]*?)(\s*[=:])(.*)$/.exec(line))) { st.cont = true; return escH(m[1]) + tok("key", m[2]) + tok("pun", m[3]) + hlValue(m[4], "ini"); }
+    return hlValue(line, "ini");
+  }
+
+  function hlTomlLine(line, st) {
+    let m;
+    if ((m = /^(\s*)(\[\[?)([^\]]*)(\]\]?)(.*)$/.exec(line))) return escH(m[1]) + tok("pun", m[2]) + tok("sec", m[3]) + tok("pun", m[4]) + hlValue(m[5], "toml");
+    if ((m = /^(\s*)([\w.\-"']+)(\s*=)(.*)$/.exec(line))) return escH(m[1]) + tok("key", m[2]) + tok("pun", m[3]) + hlValue(m[4], "toml");
+    return hlValue(line, "toml");
+  }
+
+  function hlJsonLine(line) {
+    return line.replace(/("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b|([{}\[\],])|([^"\d{}\[\],tfn-]+|.)/g,
+      (all, str, colon, num, kw, pun, other) => str ? (colon ? tok("key", str) + tok("pun", colon) : tok("str", str))
+        : num ? tok("num", num) : kw ? tok("kw", kw) : pun ? tok("pun", pun) : escH(all));
+  }
+
+  function highlight(text, lang) {
+    const lines = text.split("\n"), st = {}, out = new Array(lines.length);
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      out[i] = lang === "yaml" ? hlYamlLine(l, st) : lang === "ini" ? hlIniLine(l, st) : lang === "toml" ? hlTomlLine(l, st)
+        : lang === "json" ? hlJsonLine(l) : lang === "text" ? escH(l) : hlValue(l, lang);
+    }
+    return out;
+  }
+
+  function mountEditor(el, a) {
+    let E = el._ed;
+    if (!E) {
+      el.innerHTML = '<div class="pg-ed-gutter"><div class="pg-ed-gin"></div></div>' +
+        '<div class="pg-ed-main"><pre class="pg-ed-hl" aria-hidden="true"><code></code></pre>' +
+        '<textarea class="pg-ed-ta" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off"></textarea></div>' +
+        '<div class="pg-ed-status"><span class="pg-ed-pos"></span><span class="pg-ed-sum"></span><span class="pg-ed-lang"></span></div>';
+      E = el._ed = {
+        gutter: el.querySelector(".pg-ed-gin"), hl: el.querySelector(".pg-ed-hl"), code: el.querySelector("code"),
+        ta: el.querySelector("textarea"), pos: el.querySelector(".pg-ed-pos"), sum: el.querySelector(".pg-ed-sum"),
+        langEl: el.querySelector(".pg-ed-lang"), raf: 0, markers: [], lang: "text", goto: null, lines: -1, cur: 0,
+      };
+      const ta = E.ta;
+      const sync = () => {
+        E.hl.scrollTop = ta.scrollTop; E.hl.scrollLeft = ta.scrollLeft;
+        E.gutter.style.transform = `translateY(${-ta.scrollTop}px)`;
+      };
+      ta.addEventListener("scroll", sync, { passive: true });
+      ta.addEventListener("input", () => scheduleEditor(el));
+      const caret = () => { editorCaret(el); };
+      ta.addEventListener("keyup", caret); ta.addEventListener("click", caret); ta.addEventListener("select", caret);
+      ta.addEventListener("keydown", (e) => editorKey(el, e));
+      E.sync = sync;
+    }
+    E.lang = a["data-pg-editor"] || "text";
+    E.tab = +(a["data-tab"] || 2);
+    E.langEl.textContent = E.lang.toUpperCase();
+    E.ta.readOnly = a["data-readonly"] === "true";
+    E.ta.placeholder = a["data-placeholder"] || "";
+    try { E.markers = a["data-markers"] ? JSON.parse(a["data-markers"]) : []; } catch (_) { E.markers = []; }
+    const v = a["data-value"] == null ? "" : String(a["data-value"]);
+    // Don't overwrite what the user is typing until Python has seen it.
+    if (!(el._pgPending || (el._pgSeq || 0) > ack) && E.ta.value !== v) {
+      const s0 = E.ta.selectionStart, s1 = E.ta.selectionEnd;
+      E.ta.value = v;
+      if (document.activeElement === E.ta) { E.ta.selectionStart = Math.min(s0, v.length); E.ta.selectionEnd = Math.min(s1, v.length); }
+    }
+    if (a["data-goto"] && a["data-goto"] !== E.goto) {
+      E.goto = a["data-goto"];
+      const line = parseInt(E.goto, 10);
+      requestAnimationFrame(() => editorGoto(el, line));
+    }
+    E.lines = -1;  // force a full redraw (markers or language may have changed)
+    scheduleEditor(el);
+  }
+
+  function unmountEditor(el) {
+    if (el._ed.raf) cancelAnimationFrame(el._ed.raf);
+    el._ed = null;
+    el.innerHTML = "";
+  }
+
+  function scheduleEditor(el) {
+    const E = el._ed;
+    if (E && !E.raf) E.raf = requestAnimationFrame(() => { E.raf = 0; drawEditor(el); });
+  }
+
+  function drawEditor(el) {
+    const E = el._ed;
+    if (!E || !el.isConnected) return;
+    const text = E.ta.value;
+    const html = highlight(text, E.lang);
+    const byLine = new Map();
+    const rank = { error: 3, warning: 2, info: 1 };
+    for (const m of E.markers) {
+      const cur = byLine.get(m.line);
+      if (!cur) byLine.set(m.line, { sev: m.severity, msgs: [m.message] });
+      else { cur.msgs.push(m.message); if (rank[m.severity] > rank[cur.sev]) cur.sev = m.severity; }
+    }
+    const caretLine = E.cur;
+    let code = "", gut = "";
+    for (let i = 0; i < html.length; i++) {
+      const mk = byLine.get(i + 1);
+      const cls = (mk ? " pg-ed-" + mk.sev : "") + (i === caretLine ? " pg-ed-cur" : "");
+      code += `<span class="pg-ed-line${cls}">${html[i] || " "}</span>`;
+      gut += `<div class="pg-ed-n${cls}"${mk ? ` title="${esc(mk.msgs.join("\n"))}"` : ""}>${i + 1}</div>`;
+    }
+    E.code.innerHTML = code;
+    E.gutter.innerHTML = gut;
+    E.lines = html.length;
+    const errs = E.markers.filter((m) => m.severity === "error").length, warns = E.markers.filter((m) => m.severity === "warning").length;
+    E.sum.innerHTML = (errs ? `<b class="e">● ${errs} error${errs > 1 ? "s" : ""}</b>` : "") + (warns ? `<b class="w">▲ ${warns} warning${warns > 1 ? "s" : ""}</b>` : "") + (!errs && !warns ? `<b class="ok">✓ no problems</b>` : "");
+    editorCaret(el, true);
+    E.sync();
+  }
+
+  function editorCaret(el, quiet) {
+    const E = el._ed;
+    if (!E) return;
+    const ta = E.ta, before = ta.value.slice(0, ta.selectionStart);
+    const line = before.split("\n").length - 1, col = ta.selectionStart - before.lastIndexOf("\n");
+    E.pos.textContent = `Ln ${line + 1}, Col ${col}` + (ta.selectionEnd > ta.selectionStart ? ` (${ta.selectionEnd - ta.selectionStart} selected)` : "");
+    if (line !== E.cur) {
+      const prev = E.cur;
+      E.cur = line;
+      if (!quiet) {
+        for (const box of [E.code, E.gutter]) {
+          const p = box.children[prev], n = box.children[line];
+          if (p) p.classList.remove("pg-ed-cur");
+          if (n) n.classList.add("pg-ed-cur");
+        }
+      }
+    }
+  }
+
+  function editorGoto(el, line) {
+    const E = el._ed;
+    if (!E || !line) return;
+    const lines = E.ta.value.split("\n");
+    let pos = 0;
+    for (let i = 0; i < Math.min(line - 1, lines.length - 1); i++) pos += lines[i].length + 1;
+    E.ta.focus();
+    E.ta.setSelectionRange(pos, pos + (lines[line - 1] || "").length);
+    E.ta.scrollTop = Math.max(0, (line - 1) * ED_LH - E.ta.clientHeight / 2);
+    editorCaret(el);
+  }
+
+  function insertText(ta, text) {
+    // execCommand keeps the native undo stack; fall back to setRangeText where it is missing
+    if (!document.execCommand || !document.execCommand("insertText", false, text)) {
+      ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, "end");
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+
+  function editorKey(el, e) {
+    const E = el._ed, ta = E.ta, v = ta.value;
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && (e.key === "s" || e.key === "S")) {
+      e.preventDefault();
+      el.dispatchEvent(new CustomEvent("pgsave", { bubbles: false }));
+      return;
+    }
+    if (ta.readOnly) return;
+    const pad = " ".repeat(E.tab);
+    const s = ta.selectionStart, end = ta.selectionEnd;
+    const ls = v.lastIndexOf("\n", s - 1) + 1;
+    if (e.key === "Tab" && !mod && !e.altKey) {
+      e.preventDefault();
+      if (s === end && !e.shiftKey) { insertText(ta, pad); return; }
+      // indent / dedent every selected line
+      const le = v.indexOf("\n", end - (end > s && v[end - 1] === "\n" ? 1 : 0));
+      const stop = le < 0 ? v.length : le;
+      const block = v.slice(ls, stop).split("\n");
+      const changed = block.map((l) => e.shiftKey ? l.replace(new RegExp("^ {1," + E.tab + "}"), "") : pad + l).join("\n");
+      ta.setSelectionRange(ls, stop);
+      insertText(ta, changed);
+      ta.setSelectionRange(ls, ls + changed.length);
+      return;
+    }
+    if (e.key === "Enter" && !mod && !e.shiftKey && !e.altKey) {
+      const line = v.slice(ls, s);
+      let ind = line.match(/^\s*/)[0];
+      if (E.lang === "yaml" && /^\s*-\s+\S/.test(line)) ind += "  ";  // continue inside the list item
+      if ((E.lang === "yaml" || E.lang === "python") && /:\s*(#.*)?$/.test(line)) ind += pad;
+      e.preventDefault();
+      insertText(ta, "\n" + ind);
+      return;
+    }
+    if (mod && e.key === "/") {
+      e.preventDefault();
+      const mark = E.lang === "ini" ? ";" : E.lang === "json" ? null : "#";
+      if (!mark) return;
+      const le = v.indexOf("\n", end);
+      const stop = le < 0 ? v.length : le;
+      const block = v.slice(ls, stop).split("\n");
+      const all = block.every((l) => !l.trim() || l.trim().startsWith(mark));
+      const changed = block.map((l) => !l.trim() ? l : all ? l.replace(new RegExp("^(\\s*)" + (mark === "#" ? "#" : ";") + " ?"), "$1") : l.replace(/^(\s*)/, "$1" + mark + " ")).join("\n");
+      ta.setSelectionRange(ls, stop);
+      insertText(ta, changed);
+      ta.setSelectionRange(ls, ls + changed.length);
     }
   }
 

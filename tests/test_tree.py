@@ -272,6 +272,7 @@ class ComponentTests(unittest.TestCase):
             "sparkline": lambda: ui.sparkline([1, 3, 2]),
             "virtual_list": lambda: ui.virtual_list(list(range(100)), lambda i: ui.text(str(i))),
             "log_view": lambda: ui.log_view(Log()),
+            "code_editor": lambda: ui.code_editor("x: 1", language="yaml"),
             "file_browser": lambda: ui.file_browser(os.path.dirname(__file__), height=300),
             "file_dialog": lambda: ui.file_dialog(State(True), start=os.path.dirname(__file__)),
             "file_icon": lambda: ui.file_icon("a.pdf", 32), "breadcrumbs": lambda: ui.breadcrumbs(["a", "b"]),

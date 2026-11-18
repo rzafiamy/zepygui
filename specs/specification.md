@@ -245,6 +245,9 @@ the matrix labels them `auto (gui)`.
 - **REQ-CMP-011** A virtual table or `virtual_list` MUST render only the rows in view plus a margin, and MUST render the rows at a new scroll offset when the client reports it. **[T]**
 - **REQ-CMP-012** While a virtual table scrolls in a window, its DOM MUST hold a bounded number of rows. **[T]**
 - **REQ-CMP-013** `table` MUST switch to virtual rendering when given more than 1,000 rows, unless `virtual` is set. **[T]**
+- **REQ-CMP-014** `code_editor` MUST send its text, its language and its problem markers to the window, and MUST update a bound `State` with the text the user types. **[T]**
+- **REQ-CMP-015** `code_editor` MUST call `on_save` with the current text when the window reports a save (Ctrl+S / Cmd+S). **[T]**
+- **REQ-CMP-016** `code_editor` MUST colour the text of its language and mark the lines that carry a problem, in the window. **[M]**
 
 ### 5.8 Theming (REQ-THM)
 

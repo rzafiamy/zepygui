@@ -39,7 +39,7 @@ __all__ = [
     # charts
     "line_chart", "bar_chart", "donut", "sparkline",
     # large data
-    "virtual_list", "log_view",
+    "virtual_list", "log_view", "code_editor",
     # actions
     "toast", "navigate", "run_js", "set_title", "set_theme", "toggle_theme", "copy", "background",
     # background work
@@ -1426,6 +1426,57 @@ def log_view(log, *, height=360, follow=True, filter=None, numbers=False, key=No
                    **props)
 
 
+# -- code editor --------------------------------------------------------------
+EDITOR_LANGUAGES = ("yaml", "ini", "json", "python", "shell", "toml", "text")
+
+
+def code_editor(value=None, *, language="text", height=420, on_change=None, on_save=None, markers=None,
+                debounce=150, readonly=False, line_numbers=True, wrap=False, tab_size=2, goto=None,
+                placeholder=None, key=None, cls=None, style=None, **kw):
+    """A code editor with syntax highlighting, line numbers and problem markers.
+
+    ``value``     a ``State`` (two-way bound) or a string
+    ``language``  one of ``yaml``, ``ini``, ``json``, ``python``, ``shell``, ``toml`` or ``text``
+    ``on_change`` called with the text after the user pauses for ``debounce`` ms
+    ``on_save``   called with the text on Ctrl+S / Cmd+S
+    ``markers``   problems to show in the gutter: dicts with ``line`` (1-based), ``message`` and
+                  ``severity`` (``"error"``, ``"warning"`` or ``"info"``)
+    ``goto``      a line number (or ``(line, nonce)`` to jump to the same line again): moves the caret there
+
+    The editor keeps the undo history, indents with Tab / Shift+Tab, keeps the indentation on
+    Enter and toggles comments with Ctrl+/. Highlighting runs in the window, as the user types.
+    """
+    import json as _json
+    current, handle = _bind(value, on_change)
+    lang = language if language in EDITOR_LANGUAGES else "text"
+    clean = []
+    for m in markers or ():
+        try:
+            line = int(m.get("line") or 1)
+        except (TypeError, ValueError):
+            line = 1
+        clean.append({"line": max(1, line), "message": str(m.get("message", "")),
+                      "severity": m.get("severity") if m.get("severity") in ("error", "warning", "info") else "error"})
+    if isinstance(goto, (tuple, list)):
+        goto = f"{goto[0]}:{goto[1]}"
+    elif goto is not None:
+        goto = f"{goto}:0"
+    ed = Element("div", cls=_c("pg-editor", "pg-editor-wrap" if wrap else None,
+                               None if line_numbers else "pg-editor-nonum", cls),
+                 style=_merge({"height": _px(height)}, style), key=key or "pg-editor",
+                 data_pg_editor=lang, data_value="" if current is None else str(current),
+                 data_markers=_json.dumps(clean) if clean else None, data_readonly="true" if readonly else None,
+                 data_tab=str(tab_size), data_goto=goto, data_placeholder=placeholder, **kw)
+    if handle is not None:
+        ed.on("input", handle, transform=lambda ev: ev.value or "", debounce=debounce)
+    if on_save is not None:
+        def saved(ev, _fn=on_save):
+            from .state import invoke
+            invoke(_fn, ev.value or "")
+        ed.on("pgsave", saved, prevent=True)
+    return ed
+
+
 # -- tabs ---------------------------------------------------------------------
 def _tab_items(tabs_def):
     items = tabs_def.items() if isinstance(tabs_def, dict) else tabs_def
@@ -1550,8 +1601,9 @@ def _fmt(v, fmt=None):
     return f"{v:,}"
 
 
-def _legend(names):
-    return row(*[Element("span", Element("span", cls="pg-legend-dot", style={"background": _PALETTE[i % 6]}), n,
+def _legend(names, colors=None):
+    colors = colors or _PALETTE
+    return row(*[Element("span", Element("span", cls="pg-legend-dot", style={"background": colors[i % len(colors)]}), n,
                          cls="pg-legend-item") for i, n in enumerate(names)], gap=4, wrap=True, cls="pg-legend")
 
 
@@ -1612,7 +1664,7 @@ def line_chart(data, labels=None, *, height=240, area=True, dots=True, smooth=Tr
     chart = Element("div", y_axis, Element("div", svg, *dot_els, cls="pg-chart-plot"), Element("div"), x_axis,
                     cls="pg-chart", style={"height": _px(height)})
     names = [nme for nme, _ in series if nme]
-    return Element("div", _legend(names) if len(names) > 1 else None, chart,
+    return Element("div", _legend(names, colors) if len(names) > 1 else None, chart,
                    cls=_c("pg-chart-box", cls), style=style)
 
 
@@ -1633,9 +1685,14 @@ def bar_chart(data, *, height=240, format=None, color=None, multicolor=False, cl
 
 
 def donut(data, *, size=170, thickness=5, center=None, center_label=None, format=None, legend=True,
-          cls=None, style=None):
-    """Donut chart from {label: value}. ``center`` text defaults to the total."""
+          colors=None, cls=None, style=None):
+    """Donut chart from {label: value}. ``center`` text defaults to the total.
+
+    ``colors``: a list of CSS colours, or a {label: colour} dict (others use the palette)."""
     items = list(_val(data).items())
+    if isinstance(colors, dict):
+        colors = [colors.get(lbl, _PALETTE[i % 6]) for i, (lbl, _) in enumerate(items)]
+    colors = colors or _PALETTE
     total = sum(v for _, v in items) or 1
     rings = [Element("circle", cx=21, cy=21, r=15.915, fill="none", cls="pg-donut-bg", stroke_width=thickness)]
     offset = 25.0
@@ -1643,7 +1700,7 @@ def donut(data, *, size=170, thickness=5, center=None, center_label=None, format
         pct = v / total * 100
         seg = Element("circle", cx=21, cy=21, r=15.915, fill="none", stroke_width=thickness,
                       stroke_dasharray=f"{max(pct - 0.6, 0):.3f} {100 - pct + 0.6:.3f}",
-                      stroke_dashoffset=f"{offset:.3f}", cls="pg-donut-seg", style={"stroke": _PALETTE[i % 6]})
+                      stroke_dashoffset=f"{offset:.3f}", cls="pg-donut-seg", style={"stroke": colors[i % len(colors)]})
         seg.add(Element("title", f"{lbl}: {_fmt(v, format)} ({pct:.0f}%)"))
         rings.append(seg)
         offset -= pct
@@ -1654,7 +1711,7 @@ def donut(data, *, size=170, thickness=5, center=None, center_label=None, format
                      cls="pg-donut-center")
     leg = None
     if legend:
-        leg = column(*[row(Element("span", cls="pg-legend-dot", style={"background": _PALETTE[i % 6]}),
+        leg = column(*[row(Element("span", cls="pg-legend-dot", style={"background": colors[i % len(colors)]}),
                            Element("span", str(lbl), cls="pg-legend-name"), spacer(),
                            Element("span", f"{v / total * 100:.0f}%", cls="pg-legend-val"), gap=2.5)
                        for i, (lbl, v) in enumerate(items)], gap=2, cls="pg-donut-legend")

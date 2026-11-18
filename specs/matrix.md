@@ -8,8 +8,8 @@ themselves: the `covers:` line of each test in `tests/test_*.py`, and the rows o
 `auto (gui)` tests open a real native window and run on macOS with
 `ZEPYGUI_GUI_TESTS=1`.
 
-Requirements: **163** · covered by an automated test: **141**
-(of which GUI only: **10**) · manual only: **22**
+Requirements: **166** · covered by an automated test: **143**
+(of which GUI only: **10**) · manual only: **23**
 · uncovered: **0**
 
 | Requirement | Verified by | Tests |
@@ -74,6 +74,9 @@ Requirements: **163** · covered by an automated test: **141**
 | **REQ-CMP-011** A virtual table or `virtual_list` MUST render only the rows in view plus a margin, and MUST render the rows at a new scroll offset when the client reports it. | auto | `virtual table renders only rows in view and follows the scroll` (tests/test_performance.py)<br>`virtual list renders only items in view` (tests/test_performance.py) |
 | **REQ-CMP-012** While a virtual table scrolls in a window, its DOM MUST hold a bounded number of rows. | auto (gui) | `virtual table keeps a small dom while scrolling` (tests/test_native.py) |
 | **REQ-CMP-013** `table` MUST switch to virtual rendering when given more than 1,000 rows, unless `virtual` is set. | auto | `tables switch to virtual above a thousand rows` (tests/test_performance.py) |
+| **REQ-CMP-014** `code_editor` MUST send its text, its language and its problem markers to the window, and MUST update a bound `State` with the text the user types. | auto | `the editor sends text language and markers and binds a state` (tests/test_editor.py)<br>`an unknown language falls back to plain text` (tests/test_editor.py) |
+| **REQ-CMP-015** `code_editor` MUST call `on_save` with the current text when the window reports a save (Ctrl+S / Cmd+S). | auto | `save calls on save with the text` (tests/test_editor.py) |
+| **REQ-CMP-016** `code_editor` MUST colour the text of its language and mark the lines that carry a problem, in the window. | manual | `MT-023 Add `ui.code_editor(State("name: demo\nsteps:\n  - run: echo ${X}  # hi"), language="yaml", markers=[{"line": 2, "message": "bad", "severity": "error"}])` to a page and run it, in dark then light theme. Confirm keys, strings, `${X}` and the comment are coloured differently, line 2 shows a red dot whose tooltip says "bad", typing keeps the colours aligned with the caret, Tab indents, Enter keeps the indentation and Ctrl+Z undoes.` (specs/manual.md) |
 | **REQ-THM-001** `theme="auto"` MUST follow the operating system's appearance at launch. | manual | `MT-010 In System Settings › Appearance choose **Light**, run `examples/todo.py` (theme `auto`): confirm a light UI. Quit, choose **Dark**, run it again: confirm a dark UI. Run this before MT-011 and without touching the theme toggle: a theme chosen with the toggle is remembered and overrides `auto`.` (specs/manual.md) |
 | **REQ-THM-002** `ui.set_theme` MUST send the theme to the window and update `session.theme`. | auto | `set theme reaches the window and the session` (tests/test_runtime.py) |
 | **REQ-THM-003** The `accent` and `radius` settings MUST be applied as the `--accent` and `--radius` CSS variables. | auto | `accent colour becomes the accent variable` (tests/test_runtime.py) |

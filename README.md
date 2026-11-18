@@ -342,6 +342,8 @@ def layout(content):
 
 **Large data:** `virtual_list`, `log_view`, and `table(..., virtual=True)`
 
+**Code:** `code_editor` (YAML, INI, JSON, TOML, Python, shell; problem markers)
+
 **Files:** `file_browser`, `file_dialog`, `file_icon`, `breadcrumbs` (see [File browsing](#file-browsing))
 
 **Actions:** `toast`, `navigate`, `set_theme`, `toggle_theme`, `set_title`, `copy`, `run_js`, `background`
@@ -446,6 +448,26 @@ log.append("done")                                         # from any thread
 print("also works", file=log)
 log.save("session.log"); log.clear()
 ```
+
+### A code editor with highlighting and problem markers
+
+```python
+text = State(open("pipeline.yaml").read())
+
+ui.code_editor(
+    text,                                  # two-way bound, like ui.input
+    language="yaml",                       # yaml, ini, json, toml, python, shell or text
+    markers=[{"line": 4, "message": "unknown key 'timout'", "severity": "warning"}],
+    on_change=lambda t: recheck(t),        # after the user pauses (debounce=150 ms)
+    on_save=lambda t: save(t),             # Ctrl+S / Cmd+S
+    goto=(12, nonce),                      # move the caret to a line (a new nonce jumps again)
+    height=480,
+)
+```
+
+Highlighting runs in the window as the user types; the text area stays a real `<textarea>`, so
+selection, undo, IME and copy/paste are native. Tab / Shift+Tab indent, Enter keeps the indentation,
+Ctrl+/ toggles comments, and the status bar shows the caret position and the problem count.
 
 ### Tables and lists with 100,000+ rows
 

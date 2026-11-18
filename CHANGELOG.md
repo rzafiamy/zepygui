@@ -4,6 +4,19 @@ All notable changes to ZePyGUI are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-18
+
+### Added
+- `ui.code_editor`: a code editor with syntax highlighting for YAML, INI, JSON, TOML, Python and shell,
+  line numbers, problem markers in the gutter (error / warning / info, with their messages), a status
+  bar, Tab / Shift+Tab indentation, auto-indent, Ctrl+/ comments, `on_save` for Ctrl+S / Cmd+S and
+  `goto` to move the caret to a line. Two-way binds a `State` like `ui.input`.
+- `donut(..., colors=...)` takes a list or a `{label: colour}` dict.
+- The log console tints success lines (`SUCCESS`, `PASSED`, `✔`) green and section lines (`▶`, `━━`) bold.
+
+### Fixed
+- The legend of `line_chart` now uses the `colors` passed to the chart.
+
 ## [0.2.0] - 2026-11-05
 
 ### Added
@@ -41,5 +54,6 @@ All notable changes to ZePyGUI are recorded here. The format follows
 First release: native macOS window, Edge/Chromium app window on Windows and Linux, reactive
 state, 50+ components, charts, background tasks, log console, virtual tables, validation.
 
+[0.3.0]: https://github.com/rzafiamy/zepygui/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/rzafiamy/zepygui/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rzafiamy/zepygui/releases/tag/v0.1.0

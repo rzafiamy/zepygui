@@ -22,6 +22,6 @@ from .state import State
 from .tasks import Cancelled, CommandError, Task
 from .ui import component, use_state
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = ["fs", "App", "State", "Event", "Session", "ui", "component", "use_state", "Log", "Task", "Cancelled",
            "CommandError", "rules", "Field", "Form", "ValidationError"]
