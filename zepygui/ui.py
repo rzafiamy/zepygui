@@ -35,7 +35,7 @@ __all__ = [
     "radio_group", "segmented", "form",
     # display
     "icon", "register_icon", "badge", "avatar", "progress", "spinner", "alert", "stat", "image",
-    "table", "tabs", "accordion", "modal", "tooltip", "empty_state", "theme_toggle",
+    "table", "tabs", "accordion", "modal", "tooltip", "empty_state", "theme_toggle", "dropdown",
     # charts
     "line_chart", "bar_chart", "donut", "sparkline",
     # large data
@@ -909,6 +909,88 @@ def icon_button(name, on_click=None, *, variant="ghost", size="md", tooltip=None
         b.tooltip(tooltip)
         b.attrs["aria-label"] = tooltip
     return b
+
+
+def _menu_items(items):
+    out = []
+    for it in items or ():
+        if it is None or it == "-":
+            out.append(None)
+        elif isinstance(it, dict):
+            out.append({"label": it.get("label"), "on_click": it.get("on_click"), "icon": it.get("icon"),
+                        "danger": bool(it.get("danger")), "disabled": bool(it.get("disabled")),
+                        "hint": it.get("hint")})
+        else:
+            it = tuple(it)
+            out.append({"label": it[0], "on_click": it[1] if len(it) > 1 else None,
+                        "icon": it[2] if len(it) > 2 else None, "danger": False, "disabled": False, "hint": None})
+    while out and out[-1] is None:
+        out.pop()
+    return out
+
+
+@component
+def _Dropdown(items, label, icon, variant, size, align, tooltip, cls, style):
+    open_ = use_state(False)
+    entries = _menu_items(items)
+
+    def close():
+        open_.set(False)
+
+    def pick(fn):
+        def run():
+            open_.set(False)
+            if fn is not None:
+                _call_user(fn)
+        return run
+
+    if label is None:
+        trigger = icon_button(icon, lambda: open_.set(not open_.value), variant=variant, size=size,
+                              tooltip=None if open_.value else tooltip)
+    else:
+        trigger = button(label, lambda: open_.set(not open_.value), variant=variant, size=size, icon=icon,
+                         icon_right="chevron-down")
+    trigger.attrs["data-pg-trigger"] = True
+    trigger.attrs["aria-haspopup"] = "menu"
+    trigger.attrs["aria-expanded"] = "true" if open_.value else "false"
+    if open_.value:
+        trigger.attrs["class"] = _c(trigger.attrs.get("class"), "pg-dd-open")
+    children = [trigger]
+    if open_.value:
+        rows = []
+        for e in entries:
+            if e is None:
+                rows.append(Element("div", cls="pg-menu-sep", role="separator"))
+                continue
+            rows.append(Element(
+                "button", _icon(e["icon"], 16) if e["icon"] else Element("span", cls="pg-menu-noicon"),
+                Element("span", e["label"], cls="pg-menu-label"),
+                Element("span", e["hint"], cls="pg-menu-hint") if e["hint"] else None,
+                type="button", role="menuitem", disabled=e["disabled"],
+                cls=_c("pg-menu-item", "pg-menu-danger" if e["danger"] else None),
+                on_click=None if e["disabled"] else pick(e["on_click"])))
+        catcher = Element("div", cls="pg-menu-catch", data_pg_esc=True)
+        catcher.on("click", close)
+        children.append(catcher)
+        children.append(Element("div", *rows, cls="pg-menu", role="menu", data_pg_popover=align))
+    # a menu inside a clickable row (a table with on_row_click) must not click the row too
+    for el in [trigger] + [c for c in children[1:]] + [r for r in (children[2].children if open_.value else [])]:
+        if isinstance(el, Element) and "click" in el.events:
+            el.events["click"][1]["stop"] = True
+    return Element("span", *children, cls=_c("pg-dropdown", cls), style=style)
+
+
+def dropdown(items, *, label=None, icon="more", variant="ghost", size="sm", align="end", tooltip="More actions",
+             key=None, cls=None, style=None):
+    """A button that opens a menu of actions: keeps cards and rows to one visible primary action.
+
+    ``items``: dicts ``{"label", "on_click", "icon", "danger", "disabled", "hint"}`` or tuples
+    ``(label, on_click[, icon])``; ``None`` (or ``"-"``) draws a separator.
+    With no ``label`` the trigger is an icon button (``icon``, "⋯" by default).
+    ``align``: ``"end"`` (the menu's right edge under the trigger's) or ``"start"``.
+    The menu closes on a choice, a click outside or Escape, and is never clipped by a scrolling parent.
+    """
+    return _Dropdown(items, label, icon, variant, size, align, tooltip, cls, style, key=key)
 
 
 def _unfield(value, error, on_change):

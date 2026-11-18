@@ -247,6 +247,9 @@ the matrix labels them `auto (gui)`.
 - **REQ-CMP-013** `table` MUST switch to virtual rendering when given more than 1,000 rows, unless `virtual` is set. **[T]**
 - **REQ-CMP-014** `code_editor` MUST send its text, its language and its problem markers to the window, and MUST update a bound `State` with the text the user types. **[T]**
 - **REQ-CMP-015** `code_editor` MUST call `on_save` with the current text when the window reports a save (Ctrl+S / Cmd+S). **[T]**
+- **REQ-CMP-017** `dropdown` MUST show its items only while open, run the chosen item's handler and close, and MUST NOT run a parent row's click handler. **[T]**
+- **REQ-CMP-018** An open `dropdown` MUST close without choosing on a click outside it or on Escape. **[T]**
+- **REQ-CMP-019** An open `dropdown` menu MUST appear next to its trigger, inside the window and not clipped by a scrolling parent, and MUST be navigable with the arrow keys. **[M]**
 - **REQ-CMP-016** `code_editor` MUST colour the text of its language and mark the lines that carry a problem, in the window. **[M]**
 
 ### 5.8 Theming (REQ-THM)

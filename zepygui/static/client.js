@@ -256,11 +256,46 @@
     if (k === "data-pg-reveal" && v != null && v !== false) {
       // keep the element (e.g. the row picked with the keyboard) in view
       requestAnimationFrame(() => el.isConnected && el.scrollIntoView({ block: "nearest", inline: "nearest" }));
+    } else if (k === "data-pg-popover" && v != null && v !== false) {
+      // a dropdown menu: fixed position under its trigger, so no scrolling parent clips it
+      requestAnimationFrame(() => placePopover(el, String(v)));
     } else if (k === "data-pg-scroll" && v != null) {
       const top = parseFloat(String(v));  // "offset:nonce": the nonce lets the same offset be sent again
       requestAnimationFrame(() => { if (Math.abs(el.scrollTop - top) > 1) el.scrollTop = top; });
     }
   }
+
+  function placePopover(el, align) {
+    if (!el.isConnected) return;
+    const trigger = el.parentElement && el.parentElement.querySelector("[data-pg-trigger]");
+    if (!trigger) return;
+    const r = trigger.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    let left = align === "start" ? r.left : r.right - w;
+    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+    let top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8 && r.top - h - 6 > 8) top = r.top - h - 6;  // open upwards near the bottom
+    el.style.left = left + "px";
+    el.style.top = top + "px";
+    // a transformed ancestor (a card lifted on hover) moves "fixed" boxes: correct by what we measure
+    const b = el.getBoundingClientRect();
+    if (Math.abs(b.left - left) > 0.5) el.style.left = (2 * left - b.left) + "px";
+    if (Math.abs(b.top - top) > 0.5) el.style.top = (2 * top - b.top) + "px";
+    el.classList.add("pg-menu-placed");
+    const first = el.querySelector(".pg-menu-item:not([disabled])");
+    if (first) first.focus({ preventScroll: true });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    // arrow keys move between the items of an open menu
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const menu = e.target.closest && e.target.closest(".pg-menu");
+    if (!menu) return;
+    e.preventDefault();
+    const items = Array.from(menu.querySelectorAll(".pg-menu-item:not([disabled])"));
+    const i = items.indexOf(document.activeElement);
+    const next = items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length];
+    if (next) next.focus();
+  });
 
   function update(el, v, svg) {
     const a = v.a || {}, old = el._pgA || {};

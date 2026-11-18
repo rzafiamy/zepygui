@@ -11,6 +11,10 @@ All notable changes to ZePyGUI are recorded here. The format follows
   line numbers, problem markers in the gutter (error / warning / info, with their messages), a status
   bar, Tab / Shift+Tab indentation, auto-indent, Ctrl+/ comments, `on_save` for Ctrl+S / Cmd+S and
   `goto` to move the caret to a line. Two-way binds a `State` like `ui.input`.
+- `ui.dropdown`: a "⋯" (or labelled) button opening a menu of actions with icons, hints, separators,
+  disabled and danger items. It closes on a choice, a click outside or Escape, moves with the arrow keys,
+  never clicks the table row it sits in, and is positioned so that no scrolling parent or lifted card
+  clips or shifts it.
 - `donut(..., colors=...)` takes a list or a `{label: colour}` dict.
 - The log console tints success lines (`SUCCESS`, `PASSED`, `✔`) green and section lines (`▶`, `━━`) bold.
 

@@ -336,7 +336,7 @@ def layout(content):
 `radio_group`, `segmented`, `form`
 
 **Display:** `badge`, `avatar`, `icon`, `image`, `progress`, `spinner`, `alert`, `stat`, `table`,
-`tabs`, `accordion`, `modal`, `tooltip`, `empty_state`, `theme_toggle`
+`tabs`, `accordion`, `modal`, `tooltip`, `empty_state`, `theme_toggle`, `dropdown`
 
 **Charts:** `line_chart`, `bar_chart`, `donut`, `sparkline`
 
