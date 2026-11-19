@@ -285,12 +285,15 @@ the matrix labels them `auto (gui)`.
 ### 5.11 Security (REQ-SEC)
 
 - **REQ-SEC-001** A server-backed window MUST require the launch token or its cookie for every page and for the WebSocket; only `/_pg/` assets MAY be served without it. **[T]**
-- **REQ-SEC-002** A request carrying a valid token MUST receive an `HttpOnly`, `SameSite=Strict` cookie scoped to the port and a redirect to the same URL without the token. **[T]**
+- **REQ-SEC-002** A request carrying a valid launch token MUST receive an `HttpOnly`, `SameSite=Strict` cookie scoped to the port, holding a session secret distinct from the launch token, and a page that forwards to the same URL without the token. **[T]**
 - **REQ-SEC-003** Static file serving MUST refuse any path resolving outside its directory. **[T]**
 - **REQ-SEC-004** Markdown MUST escape raw HTML and neutralise `javascript:`, `vbscript:` and `data:` URLs. **[T]**
 - **REQ-SEC-005** Text children MUST be inserted as text nodes, never parsed as HTML. **[M]**
 - **REQ-SEC-006** A WebSocket message larger than 32 MiB MUST close the connection. **[T]**
 - **REQ-SEC-007** A request from the UI to open a URL MUST be honoured only for `http`, `https` and `mailto` URLs. **[T]**
+- **REQ-SEC-008** Outside `server` mode the launch token MUST work only once, and the app window MUST be started on a launch file readable only by the user, so the token never appears on the browser's command line. **[T]**
+- **REQ-SEC-009** A server bound to loopback MUST refuse a `Host` other than its loopback address and port or `allowed_hosts`; a WebSocket or POST whose `Origin` is not the app MUST be refused. **[T]**
+- **REQ-SEC-010** The app page MUST carry a Content-Security-Policy whose scripts need a per-response nonce (no `unsafe-inline` or `unsafe-eval` scripts), and every response MUST carry `nosniff`, `no-referrer`, same-origin framing and opener headers and a Permissions-Policy; the app MAY replace or turn off the CSP and the Permissions-Policy. **[T]**
 
 ### 5.12 Desktop integration (REQ-DSK)
 

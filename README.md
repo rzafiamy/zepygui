@@ -577,6 +577,12 @@ app.run(mode="server")       # open nothing, print the address (remote use, scre
 ```
 
 `ZEPYGUI_MODE=server` and `ZEPYGUI_PORT=8765` override the mode and port without editing the code.
+Behind a reverse proxy, list its public name: `App(..., allowed_hosts=["app.example.com"])` or
+`ZEPYGUI_ALLOWED_HOSTS=app.example.com`.
+
+Security options: `App(csp=...)` replaces the page's Content-Security-Policy (`{nonce}` is the page's
+script nonce) and `csp=False` removes it; `App(permissions_policy=...)` re-enables browser features
+such as the camera. See [SECURITY.md](SECURITY.md).
 
 ---
 

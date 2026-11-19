@@ -4,6 +4,33 @@ All notable changes to ZePyGUI are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Security
+- The launch token in the window's URL now works **once** (outside `server` mode) and is no longer the
+  session secret: the cookie holds a separate one. A URL seen in the process list or the browser's
+  history can no longer open the app.
+- The app window is started on a launch file in its private profile folder (`0600`), so the token
+  never appears on the browser's command line.
+- A loopback server refuses a `Host` other than its own address and port (DNS rebinding), and any
+  WebSocket or POST whose `Origin` is not the app. `App(allowed_hosts=...)` or `ZEPYGUI_ALLOWED_HOSTS`
+  adds names, for a reverse proxy.
+- ZePyGUI's page carries a strict Content-Security-Policy: scripts need a per-response nonce, so markup
+  injected through `ui.html` can no longer run inline handlers or `javascript:` URLs. Scripts added with
+  `head=` / `app.add_head` get the nonce automatically. `App(csp=...)` replaces the policy, `csp=False`
+  turns it off.
+- Every response carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
+  `X-Frame-Options: SAMEORIGIN`, `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy:
+  same-origin` and a Permissions-Policy that turns camera, microphone, location... off
+  (`App(permissions_policy=...)` to change it).
+
+### Changed
+- `ui.run_js` runs its code as a nonce'd script instead of `new Function`, so the page needs no
+  `unsafe-eval`. The code still runs as a function body (`return` works).
+- A valid launch token answers with a page that forwards to the URL without it, instead of a 302.
+- Inline event handlers (`onclick="..."`) in `ui.html` markup no longer run: bind events with
+  components instead, or pass `csp=False`.
+
 ## [0.3.0] - 2026-11-18
 
 ### Added

@@ -4,9 +4,14 @@ Like Tauri relies on the OS webview, ZePyGUI reuses an installed Chromium-based 
 (Edge ships with Windows; Chrome/Brave/Chromium elsewhere) in ``--app`` mode: no tabs,
 no address bar, its own window and dock/taskbar entry, and a private profile per app.
 Set ``ZEPYGUI_BROWSER=/path/to/browser`` to choose one explicitly.
+
+The browser is started on a small file in its (private) profile folder that forwards to the
+app's URL, so the launch token never appears on the command line, which every local user can
+read in the process list.
 """
 from __future__ import annotations
 
+import html
 import os
 import platform
 import re
@@ -55,18 +60,45 @@ def _profile_dir(title):
         base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "zepygui"
     path = base / "profiles" / slug
     path.mkdir(parents=True, exist_ok=True)
+    if os.name == "posix":
+        try:
+            os.chmod(path, 0o700)  # the profile holds the window's cookie and the launch file
+        except OSError:
+            pass
+    return path
+
+
+def write_launch_file(folder, url):
+    """A page, readable only by this user, that forwards the browser to ``url``. Returns its path."""
+    path = Path(folder) / "launch.html"
+    page = (f'<!doctype html><meta charset="utf-8"><meta name="referrer" content="no-referrer">'
+            f'<meta http-equiv="refresh" content="0;url={html.escape(url)}"><body style="background:#0b0d12">')
+    try:
+        os.remove(path)  # recreate it so the permissions below apply even to an old file
+    except OSError:
+        pass
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(page.encode("utf-8"))
     return path
 
 
 def open_window(url, title, width, height):
-    """Launch an app window. Returns the browser process, or None if no Chromium was found."""
+    """Launch an app window. Returns ``(process, launch_file)``; the process is None if no
+    Chromium was found. Delete ``launch_file`` once the window has used it."""
     exe = find_browser()
     if not exe:
-        return None
+        return None, None
+    profile = _profile_dir(title)
+    try:
+        launch = write_launch_file(profile, url)
+        target = launch.resolve().as_uri()
+    except OSError:
+        launch, target = None, url
     args = [
         exe,
-        f"--app={url}",
-        f"--user-data-dir={_profile_dir(title)}",
+        f"--app={target}",
+        f"--user-data-dir={profile}",
         f"--window-size={width},{height}",
         "--no-first-run",
         "--no-default-browser-check",
@@ -78,6 +110,11 @@ def open_window(url, title, width, height):
     if platform.system() != "Windows":
         kwargs["start_new_session"] = True
     try:
-        return subprocess.Popen(args, **kwargs)
+        return subprocess.Popen(args, **kwargs), launch
     except OSError:
-        return None
+        if launch:
+            try:
+                os.remove(launch)
+            except OSError:
+                pass
+        return None, None

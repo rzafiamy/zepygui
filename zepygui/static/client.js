@@ -8,11 +8,21 @@
   const statusEl = document.getElementById("pg-status");
   const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.zepygui;
   const NATIVE = !!bridge;
+  // the page's CSP nonce: run_js code runs as a script carrying it (no eval needed)
+  const NONCE = (document.currentScript && document.currentScript.nonce) || "";
   const PROPS = { value: 1, checked: 1 };
   const calls = new Map();
   const debounced = new Map();
   const throttled = new Map();
   let ws = null, seq = 0, ack = 0, retries = 0, boot = null, statusTimer = null, callId = 0, rendered = false;
+
+  function runScript(code) {
+    const el = document.createElement("script");
+    if (NONCE) el.nonce = NONCE;
+    // a function body, as before: `return` works and variables stay local
+    el.textContent = `(function(){\n${code}\n}).call(window);`;
+    try { document.head.appendChild(el); } catch (err) { console.error(err); } finally { el.remove(); }
+  }
 
   // ------------------------------------------------------------------ transport
   function send(msg) {
@@ -75,7 +85,7 @@
     nav(m) { setPath(m.path); window.scrollTo(0, 0); },
     title(m) { document.title = m.title; },
     theme(m) { applyTheme(m.theme, true); },
-    js(m) { try { (new Function(m.code))(); } catch (err) { console.error(err); } },
+    js(m) { runScript(m.code); },
     result(m) {
       const p = calls.get(m.id);
       if (!p) return;

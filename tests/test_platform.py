@@ -5,6 +5,7 @@ import http.client
 import inspect
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -22,9 +23,9 @@ from zepygui.reloader import _snapshot
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def get(port, path, cookie=None):
+def get(port, path, cookie=None, headers=None):
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-    conn.request("GET", path, headers={"Cookie": cookie} if cookie else {})
+    conn.request("GET", path, headers={**({"Cookie": cookie} if cookie else {}), **(headers or {})})
     resp = conn.getresponse()
     body = resp.read()
     conn.close()
@@ -53,12 +54,93 @@ class SecurityTests(unittest.TestCase):
 
     def test_valid_token_sets_a_strict_cookie_and_strips_itself(self):
         """covers: REQ-SEC-002"""
-        resp, _ = get(self.live.port, f"/settings?_pgt={self.app.token}&tab=2")
+        resp, body = get(self.live.port, f"/settings?_pgt={self.app.launch_token}&tab=2")
         cookie = resp.getheader("Set-Cookie")
-        self.assertEqual(resp.status, 302)
-        self.assertEqual(resp.getheader("Location"), "/settings?tab=2")
+        self.assertEqual(resp.status, 200)
+        self.assertIn(b'http-equiv="refresh" content="0;url=/settings?tab=2"', body)
         for part in (f"pg_t_{self.live.port}={self.app.token}", "HttpOnly", "SameSite=Strict"):
             self.assertIn(part, cookie)
+        self.assertNotIn(self.app.token.encode(), body)
+
+    def test_launch_token_works_once_and_is_not_the_session_secret(self):
+        """covers: REQ-SEC-008"""
+        launch = self.app.launch_token
+        self.assertEqual(get(self.live.port, f"/?_pgt={self.app.token}")[0].status, 403)
+        self.assertEqual(get(self.live.port, f"/?_pgt={launch}")[0].status, 200)
+        self.assertEqual(get(self.live.port, f"/?_pgt={launch}")[0].status, 403)
+        self.assertEqual(get(self.live.port, "/", self.live.cookie)[0].status, 200)
+        # in server mode several browsers may open the printed URL
+        self.app.launch_token, self.app._launch_reusable = "shared", True
+        for _ in range(2):
+            self.assertEqual(get(self.live.port, "/?_pgt=shared")[0].status, 200)
+
+    def test_launch_file_forwards_without_the_token_on_the_command_line(self):
+        """covers: REQ-SEC-008"""
+        from zepygui.window import write_launch_file
+        folder = tempfile.mkdtemp()
+        path = write_launch_file(folder, "http://127.0.0.1:1/?_pgt=abc&x=1")
+        self.assertIn('content="0;url=http://127.0.0.1:1/?_pgt=abc&amp;x=1"', path.read_text())
+        if os.name == "posix":
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        self.app.launch_token, self.app._launch_file = "once", str(path)
+        self.assertTrue(self.app._consume_launch_token("once"))
+        self.assertFalse(path.exists())
+        self.assertFalse(self.app._consume_launch_token("once"))
+
+    def test_foreign_host_and_origin_are_refused(self):
+        """covers: REQ-SEC-009"""
+        port, cookie = self.live.port, self.live.cookie
+        self.assertEqual(get(port, "/", cookie, {"Host": "evil.example"})[0].status, 421)
+        self.assertEqual(get(port, "/", cookie, {"Host": f"evil.example:{port}"})[0].status, 421)
+        self.assertEqual(get(port, "/", cookie, {"Host": f"localhost:{port}"})[0].status, 200)
+        self.assertEqual(get(port, "/", cookie, {"Host": f"127.0.0.1:{port + 1}"})[0].status, 421)
+        self.app.allowed_hosts = {"app.example.com"}
+        self.assertEqual(get(port, "/", cookie, {"Host": "app.example.com"})[0].status, 200)
+        sock, status = ws_connect(port, "sid=o&path=/", cookie, origin="https://evil.example")
+        sock.close()
+        self.assertEqual(status, 403)
+        sock, status = ws_connect(port, "sid=o2&path=/", cookie, origin="null")
+        sock.close()
+        self.assertEqual(status, 403)
+        sock, status = ws_connect(port, "sid=o3&path=/", cookie, origin=f"http://127.0.0.1:{port}")
+        sock.close()
+        self.assertEqual(status, 101)
+        self.app.http("/api", lambda method, path, body: (200, "text/plain", b"ok"))
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        conn.request("POST", "/api/x", b"{}", {"Cookie": cookie, "Origin": "https://evil.example"})
+        self.assertEqual(conn.getresponse().status, 403)
+        conn.close()
+
+    def test_page_sends_a_strict_csp_with_a_nonce_and_hardening_headers(self):
+        """covers: REQ-SEC-010"""
+        self.app.add_head('<script src="https://cdn.example/lib.js"></script>')
+        resp, body = get(self.live.port, "/", self.live.cookie)
+        csp = resp.getheader("Content-Security-Policy")
+        nonce = re.search(r"'nonce-([^']+)'", csp).group(1)
+        self.assertIn("object-src 'none'", csp)
+        self.assertIn("frame-ancestors 'self'", csp)
+        self.assertNotIn("unsafe-eval", csp)
+        self.assertNotIn("'unsafe-inline'", csp.split("script-src", 1)[1].split(";", 1)[0])
+        self.assertIn(f"ws://127.0.0.1:{self.live.port}", csp)
+        scripts = re.findall(rb"<script[^>]*>", body)
+        self.assertEqual(len(scripts), 3)
+        for tag_ in scripts:
+            self.assertIn(f'nonce="{nonce}"'.encode(), tag_)
+        self.assertNotEqual(get(self.live.port, "/", self.live.cookie)[0].getheader("Content-Security-Policy"), csp)
+        for name, value in (("X-Content-Type-Options", "nosniff"), ("Referrer-Policy", "no-referrer"),
+                            ("X-Frame-Options", "SAMEORIGIN"), ("Cross-Origin-Opener-Policy", "same-origin")):
+            self.assertEqual(resp.getheader(name), value)
+        self.assertIn("camera=()", resp.getheader("Permissions-Policy"))
+        self.assertEqual(get(self.live.port, "/_pg/client.js")[0].getheader("X-Content-Type-Options"), "nosniff")
+        # the app can bring its own policy, or none
+        self.app.csp = "default-src 'self'; script-src 'nonce-{nonce}'"
+        resp, body = get(self.live.port, "/", self.live.cookie)
+        nonce = re.search(r"'nonce-([^']+)'", resp.getheader("Content-Security-Policy")).group(1)
+        self.assertIn(f'nonce="{nonce}"'.encode(), body)
+        self.app.csp, self.app.permissions_policy = False, False
+        resp, _ = get(self.live.port, "/", self.live.cookie)
+        self.assertIsNone(resp.getheader("Content-Security-Policy"))
+        self.assertIsNone(resp.getheader("Permissions-Policy"))
 
     def test_static_files_cannot_escape_their_directory(self):
         """covers: REQ-SEC-003"""

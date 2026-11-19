@@ -540,7 +540,14 @@ class App:
     """
 
     def __init__(self, title="ZePyGUI App", *, theme="auto", accent="#6366f1", width=1100, height=760,
-                 min_size=(480, 360), icon=None, css=None, head=None, radius=10, font=None):
+                 min_size=(480, 360), icon=None, css=None, head=None, radius=10, font=None,
+                 csp=True, permissions_policy=None, allowed_hosts=()):
+        """``csp``: True for ZePyGUI's Content-Security-Policy, a string for your own (``{nonce}``
+        is replaced by the page's script nonce), False for none. ``permissions_policy`` replaces the
+        default that turns camera, microphone, location... off (False sends none). ``allowed_hosts``
+        lists extra ``Host`` names a loopback server answers to, e.g. behind a reverse proxy."""
+        from .server import PERMISSIONS_POLICY
+
         self.title = title
         self.theme = theme
         self.accent = accent
@@ -550,7 +557,14 @@ class App:
         self.radius = radius
         self.font = font
         self.debug = False
-        self.token = None
+        self.csp = csp
+        self.permissions_policy = PERMISSIONS_POLICY if permissions_policy is None else permissions_policy
+        extra = [h for h in os.environ.get("ZEPYGUI_ALLOWED_HOSTS", "").split(",") if h.strip()]
+        self.allowed_hosts = {h.strip().lower() for h in (*allowed_hosts, *extra)}
+        self.token = None          # session secret, only ever held in the window's HttpOnly cookie
+        self.launch_token = None   # secret in the launch URL, exchanged once for that cookie
+        self._launch_reusable = False
+        self._launch_file = None
         self.boot = secrets.token_hex(4)
         self.sessions = {}
         self.window = None  # native window object (macOS), or None
@@ -676,8 +690,29 @@ class App:
             if re.match(r"^(https?|mailto):", url):
                 threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
 
+    def _consume_launch_token(self, value):
+        """True when ``value`` is the launch token. Outside ``server`` mode it works once: the URL
+        a window was started with (visible to other local users in the process list, kept in the
+        browser's history) is worthless after the window has opened."""
+        with self._lock:
+            expected = self.launch_token
+            if not expected or not secrets.compare_digest(str(value), expected):
+                return False
+            if not self._launch_reusable:
+                self.launch_token = None
+                self._remove_launch_file()
+            return True
+
+    def _remove_launch_file(self):
+        path, self._launch_file = self._launch_file, None
+        if path:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
     # -- page -------------------------------------------------------------------
-    def _index_html(self, inline=False, base="/"):
+    def _index_html(self, inline=False, base="/", nonce=None):
         cfg = {"title": self.title, "theme": self.theme, "debug": self.debug, "boot": self.boot}
         font = self.font or ("-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI Variable', 'Segoe UI', "
                              "Roboto, 'Helvetica Neue', sans-serif")
@@ -689,6 +724,10 @@ class App:
             css = f'<link rel="stylesheet" href="/_pg/style.css?v={self.boot}">'
             js = f'<script src="/_pg/client.js?v={self.boot}"></script>'
         user_css = "".join(f"<style>{c}</style>" for c in self._css)
+        n = f' nonce="{nonce}"' if nonce else ""
+        js = js.replace("<script", f"<script{n}", 1)
+        # the app's own <head> markup is trusted: its scripts get the nonce too
+        head = re.sub(r"<script\b", f"<script{n}", "".join(self._head), flags=re.I) if n else "".join(self._head)
         return f"""<!doctype html>
 <html lang="en" data-theme="dark">
 <head>
@@ -699,8 +738,8 @@ class App:
 {css}
 <style>{root_vars}</style>
 {user_css}
-{''.join(self._head)}
-<script>window.__PG__={json.dumps(cfg)};(function(){{var c=window.__PG__,t=c.theme;try{{t=localStorage.getItem("pg_theme:"+c.title)||t}}catch(e){{}}if(t==="auto")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}})();</script>
+{head}
+<script{n}>window.__PG__={json.dumps(cfg)};(function(){{var c=window.__PG__,t=c.theme;try{{t=localStorage.getItem("pg_theme:"+c.title)||t}}catch(e){{}}if(t==="auto")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}})();</script>
 </head>
 <body>
 <div id="pg-root"><div class="pg-boot"><span class="pg-spinner pg-spinner-lg"></span></div></div>
@@ -884,17 +923,19 @@ class App:
         from .server import make_server
         from .window import open_window
 
-        self.token = secrets.token_urlsafe(18)
+        self.token = secrets.token_urlsafe(24)
+        self.launch_token = secrets.token_urlsafe(24)
+        self._launch_reusable = mode == "server"  # several browsers may open a served app
         if os.environ.get("ZEPYGUI_CHILD"):
             # the reloader stops us with SIGTERM: exit through `finally` so the window closes too
             signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
         self._server = make_server(self, host, port)
         port = self._server.server_address[1]
-        url = f"http://127.0.0.1:{port}/?_pgt={self.token}"
+        url = f"http://127.0.0.1:{port}/?_pgt={self.launch_token}"
         self._startup_hooks()
         launched_at = time.time()
         if mode == "window":
-            self._browser = open_window(url, self.title, self.width, self.height)
+            self._browser, self._launch_file = open_window(url, self.title, self.width, self.height)
             if self._browser is None:
                 print("[zepygui] no Edge/Chrome/Chromium found; opening your default browser instead")
                 webbrowser.open(url)
@@ -913,5 +954,6 @@ class App:
                 s.send({"type": "close"})
             self._shutdown_hooks()
             self._server.server_close()
+            self._remove_launch_file()
             if self._browser is not None and self._browser.poll() is None:
                 self._browser.terminate()

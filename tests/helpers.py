@@ -121,13 +121,15 @@ class Harness:
 
 
 # -- minimal WebSocket client ---------------------------------------------------------
-def ws_connect(port, query, cookie=None):
+def ws_connect(port, query, cookie=None, origin=None):
     sock = socket.create_connection(("127.0.0.1", port), timeout=5)
     key = base64.b64encode(os.urandom(16)).decode()
     lines = [f"GET /_pg/ws?{query} HTTP/1.1", f"Host: 127.0.0.1:{port}", "Upgrade: websocket",
              "Connection: Upgrade", f"Sec-WebSocket-Key: {key}", "Sec-WebSocket-Version: 13"]
     if cookie:
         lines.append(f"Cookie: {cookie}")
+    if origin:
+        lines.append(f"Origin: {origin}")
     sock.sendall(("\r\n".join(lines) + "\r\n\r\n").encode())
     head = b""
     while b"\r\n\r\n" not in head:
@@ -194,10 +196,11 @@ def ws_next(sock, kind, timeout=3.0):
 class LiveServer:
     """A real ZePyGUI HTTP/WebSocket server on loopback, for transport and security tests."""
 
-    def __init__(self, app, token="secret-token"):
+    def __init__(self, app, token="secret-token", launch_token="launch-token"):
         from zepygui.server import make_server
         self.app = app
         app.token = token
+        app.launch_token = launch_token
         app._running = True
         self.server = make_server(app, "127.0.0.1", 0)
         self.port = self.server.server_address[1]

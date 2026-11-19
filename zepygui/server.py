@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import html
+import ipaddress
 import mimetypes
 import os
 import re
@@ -19,6 +21,56 @@ from urllib.parse import parse_qs, unquote, urlencode, urlsplit
 STATIC_DIR = Path(__file__).parent / "static"
 _GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 _MAX_MESSAGE = 32 * 1024 * 1024
+_LOOPBACK_NAMES = {"localhost", "127.0.0.1", "::1"}
+
+# Sent with every response: no MIME sniffing, no referrer leaking the URL, no embedding in another
+# site's frame, no sharing of the window or of its resources with other origins.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+}
+# Powerful browser features stay off unless the app opts in (App(permissions_policy=...)).
+PERMISSIONS_POLICY = ("camera=(), microphone=(), geolocation=(), usb=(), serial=(), hid=(), bluetooth=(), "
+                      "payment=(), display-capture=(), interest-cohort=()")
+
+
+def default_csp(nonce, host):
+    """The Content-Security-Policy of ZePyGUI's own page.
+
+    Scripts run only from the app itself or with this response's nonce, so markup that reaches the
+    page (``ui.html``, a crafted file name...) cannot run inline handlers or ``javascript:`` URLs.
+    Inline styles stay allowed: components set them, and they cannot run code."""
+    ws = f" ws://{host} wss://{host}" if host else ""
+    return ("default-src 'self'; "
+            f"script-src 'self' 'nonce-{nonce}'; "
+            "style-src 'self' 'unsafe-inline' https:; "
+            "img-src 'self' data: blob: https:; "
+            "media-src 'self' data: blob: https:; "
+            "font-src 'self' data: https:; "
+            f"connect-src 'self'{ws}; "
+            "worker-src 'self' blob:; "
+            "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'")
+
+
+def _is_loopback(host):
+    if host in _LOOPBACK_NAMES:
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _split_host(value):
+    """``"127.0.0.1:8765"`` -> ``("127.0.0.1", 8765)``; ``"[::1]:80"`` -> ``("::1", 80)``."""
+    value = (value or "").strip().lower()
+    m = re.match(r"^\[([0-9a-f:.]+)\](?::(\d+))?$", value) or re.match(r"^([^:\[\]]+)(?::(\d+))?$", value)
+    if not m:
+        return None, None
+    return m.group(1), int(m.group(2)) if m.group(2) else None
 
 
 class WebSocket:
@@ -139,6 +191,51 @@ class _Handler(BaseHTTPRequestHandler):
         morsel = cookie.get(self._cookie_name())
         return morsel is not None and secrets.compare_digest(morsel.value, token)
 
+    def _host_ok(self):
+        """Refuse a ``Host`` the app does not answer to (DNS rebinding).
+
+        A server bound to loopback only answers to its own loopback address and port, plus the
+        names in ``app.allowed_hosts`` (a reverse proxy). Bound elsewhere, the token decides."""
+        bound = self.server.server_address[0]
+        if not _is_loopback(bound):
+            return True
+        host, port = _split_host(self.headers.get("Host"))
+        if host is None:
+            return False
+        if host in self.app.allowed_hosts or f"{host}:{port}" in self.app.allowed_hosts:
+            return True
+        return _is_loopback(host) and port == self.server.server_address[1]
+
+    def _origin_ok(self):
+        """A browser's ``Origin``, when it sends one, must be the app itself (cross-site WebSocket
+        or POST). Requests from a browser without the header, or from scripts, are judged by the token."""
+        origin = self.headers.get("Origin")
+        if origin is None:
+            return True
+        parts = urlsplit(origin)
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            return False  # "null" (file://, sandboxed frames) and other schemes
+        netloc = parts.netloc.lower()
+        if netloc == (self.headers.get("Host") or "").strip().lower():
+            return True
+        host = _split_host(netloc)[0]
+        return netloc in self.app.allowed_hosts or host in self.app.allowed_hosts
+
+    def _guard(self):
+        """Common checks before any request is answered. False when a refusal was already sent."""
+        if not self._host_ok():
+            self.close_connection = True
+            self._send(421, "Misdirected request", "text/plain")
+            return False
+        return True
+
+    def _security_headers(self):
+        for k, v in SECURITY_HEADERS.items():
+            self.send_header(k, v)
+        policy = self.app.permissions_policy
+        if policy:
+            self.send_header("Permissions-Policy", policy)
+
     def _send(self, status, body=b"", ctype="text/html; charset=utf-8", headers=None):
         if isinstance(body, str):
             body = body.encode("utf-8")
@@ -146,6 +243,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-cache")
+        self._security_headers()
         for k, v in (headers or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -169,6 +267,11 @@ class _Handler(BaseHTTPRequestHandler):
         return False
 
     def do_POST(self):
+        if not self._guard():
+            return None
+        if not self._origin_ok():
+            self.close_connection = True
+            return self._send(403, "Forbidden", "text/plain")
         length = int(self.headers.get("Content-Length") or 0)
         if length > _MAX_MESSAGE:
             self.close_connection = True
@@ -178,6 +281,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(404, "Not found", "text/plain")
 
     def do_GET(self):
+        if not self._guard():
+            return None
         url = urlsplit(self.path)
         path = unquote(url.path)
         if self._route(path):
@@ -241,7 +346,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(end - start + 1 if size else 0))
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Cache-Control", "private, max-age=60")
-        self.send_header("X-Content-Type-Options", "nosniff")
+        self._security_headers()
         self.send_header("Content-Security-Policy", "sandbox")  # an HTML file on disk must not run as the app
         if m:
             self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
@@ -263,18 +368,34 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _index(self, url):
         query = parse_qs(url.query)
-        token = self.app.token
-        if token and query.get("_pgt", [None])[0] == token:
+        launch = query.get("_pgt", [None])[0]
+        if launch is not None and self.app._consume_launch_token(launch):
             rest = {k: v for k, v in query.items() if k != "_pgt"}
             location = url.path + ("?" + urlencode(rest, doseq=True) if rest else "")
-            cookie = f"{self._cookie_name()}={token}; Path=/; HttpOnly; SameSite=Strict"
-            return self._send(302, "", headers={"Location": location, "Set-Cookie": cookie})
+            cookie = f"{self._cookie_name()}={self.app.token}; Path=/; HttpOnly; SameSite=Strict"
+            # A page, not a 302: when the launch comes from a file:// page (see window.py), a redirect
+            # would stay "cross-site" and the browser would hold back the SameSite=Strict cookie. A
+            # refresh is a navigation by this page itself, so the cookie goes with it.
+            page = (f'<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={html.escape(location)}">'
+                    '<body style="background:#0b0d12">')
+            return self._send(200, page, headers={"Set-Cookie": cookie, "Cache-Control": "no-store",
+                                                  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"})
         if not self._authed():
-            return self._send(403, _FORBIDDEN)
-        self._send(200, self.app._custom_page() if self.app._custom_page else self.app._index_html())
+            return self._send(403, _FORBIDDEN, headers={"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"})
+        if self.app._custom_page:
+            csp = self.app.csp if isinstance(self.app.csp, str) else None
+            nonce = secrets.token_urlsafe(16)
+            headers = {"Content-Security-Policy": csp.replace("{nonce}", nonce)} if csp else {}
+            return self._send(200, self.app._custom_page(), headers=headers)
+        nonce = secrets.token_urlsafe(16)
+        headers = {}
+        if self.app.csp:
+            csp = self.app.csp if isinstance(self.app.csp, str) else default_csp(nonce, self.headers.get("Host"))
+            headers["Content-Security-Policy"] = csp.replace("{nonce}", nonce)
+        self._send(200, self.app._index_html(nonce=nonce), headers=headers)
 
     def _websocket(self, url):
-        if not self._authed():
+        if not self._authed() or not self._origin_ok():
             return self._send(403, "Forbidden", "text/plain")
         key = self.headers.get("Sec-WebSocket-Key")
         if not key or "websocket" not in self.headers.get("Upgrade", "").lower():
